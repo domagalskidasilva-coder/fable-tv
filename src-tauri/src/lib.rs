@@ -81,6 +81,7 @@ pub fn run() {
             commands::set_setting,
             commands::list_profiles,
             commands::create_profile,
+            commands::update_profile,
             commands::delete_profile,
             commands::set_active_profile,
             commands::export_data,

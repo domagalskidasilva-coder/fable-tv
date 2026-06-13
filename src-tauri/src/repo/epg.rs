@@ -136,6 +136,7 @@ mod tests {
             .write(|c| {
                 sources::add(
                     c,
+                    1,
                     &NewSource {
                         name: "F".into(),
                         kind: "m3u_url".into(),

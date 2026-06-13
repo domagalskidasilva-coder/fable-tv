@@ -95,9 +95,25 @@ impl Db {
         if version < 1 {
             conn.execute_batch(SCHEMA_V1)?;
         }
+        if version < 2 {
+            conn.execute_batch(MIGRATION_V2)?;
+        }
         Ok(())
     }
 }
+
+/// v2: profiles become isolated libraries. A profile owns its playlists
+/// (sources); the active profile scopes the whole catalog. Non-destructive:
+/// existing playlists and content are kept and assigned to the first profile.
+const MIGRATION_V2: &str = r#"
+BEGIN;
+ALTER TABLE profiles ADD COLUMN color TEXT NOT NULL DEFAULT '#e8b65a';
+ALTER TABLE sources ADD COLUMN profile_id INTEGER NOT NULL DEFAULT 1;
+UPDATE sources SET profile_id = (SELECT MIN(id) FROM profiles) WHERE profile_id NOT IN (SELECT id FROM profiles);
+CREATE INDEX IF NOT EXISTS idx_sources_profile ON sources(profile_id);
+PRAGMA user_version = 2;
+COMMIT;
+"#;
 
 const SCHEMA_V1: &str = r#"
 BEGIN;
@@ -307,7 +323,23 @@ mod tests {
         let version: i64 = db
             .read(|c| Ok(c.query_row("PRAGMA user_version", [], |r| r.get(0))?))
             .unwrap();
-        assert_eq!(version, 1);
+        assert_eq!(version, 2);
+
+        // v2: a profile carries an avatar color, and sources are bound to it.
+        let color: String = db
+            .read(|c| Ok(c.query_row("SELECT color FROM profiles WHERE id = 1", [], |r| r.get(0))?))
+            .unwrap();
+        assert_eq!(color, "#e8b65a");
+        let has_profile_col: i64 = db
+            .read(|c| {
+                Ok(c.query_row(
+                    "SELECT COUNT(*) FROM pragma_table_info('sources') WHERE name = 'profile_id'",
+                    [],
+                    |r| r.get(0),
+                )?)
+            })
+            .unwrap();
+        assert_eq!(has_profile_col, 1);
     }
 
     #[test]

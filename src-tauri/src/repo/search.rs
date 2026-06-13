@@ -29,8 +29,8 @@ pub fn global_search(conn: &Connection, profile: i64, query: &str) -> AppResult<
     results.movies = search_movies(conn, profile, &contains, &prefix)?;
     results.series = search_series(conn, profile, &contains, &prefix)?;
     results.episodes = search_episodes(conn, profile, &contains, &prefix)?;
-    results.categories = search_categories(conn, &contains)?;
-    results.epg = search_epg(conn, &contains)?;
+    results.categories = search_categories(conn, profile, &contains)?;
+    results.epg = search_epg(conn, profile, &contains)?;
     Ok(results)
 }
 
@@ -45,6 +45,7 @@ fn search_channels(
                 EXISTS(SELECT 1 FROM favorites f WHERE f.profile_id = ?2 AND f.item_type='channel' AND f.item_id = ch.id)
          FROM channels ch
          WHERE ch.search_text LIKE ?1 ESCAPE '\\'
+           AND ch.source_id IN (SELECT id FROM sources WHERE profile_id = ?2)
          ORDER BY (ch.search_text LIKE ?3 ESCAPE '\\') DESC, LENGTH(ch.name) ASC
          LIMIT ?4",
     )?;
@@ -78,6 +79,7 @@ fn search_movies(
                 EXISTS(SELECT 1 FROM favorites f WHERE f.profile_id = ?2 AND f.item_type='movie' AND f.item_id = m.id)
          FROM movies m
          WHERE m.search_text LIKE ?1 ESCAPE '\\'
+           AND m.source_id IN (SELECT id FROM sources WHERE profile_id = ?2)
          ORDER BY (m.search_text LIKE ?3 ESCAPE '\\') DESC, LENGTH(m.name) ASC
          LIMIT ?4",
     )?;
@@ -112,6 +114,7 @@ fn search_series(
                 EXISTS(SELECT 1 FROM favorites f WHERE f.profile_id = ?2 AND f.item_type='series' AND f.item_id = se.id)
          FROM series se
          WHERE se.search_text LIKE ?1 ESCAPE '\\'
+           AND se.source_id IN (SELECT id FROM sources WHERE profile_id = ?2)
          ORDER BY (se.search_text LIKE ?3 ESCAPE '\\') DESC, LENGTH(se.name) ASC
          LIMIT ?4",
     )?;
@@ -149,6 +152,7 @@ fn search_episodes(
                 EXISTS(SELECT 1 FROM favorites f WHERE f.profile_id = ?2 AND f.item_type='episode' AND f.item_id = e.id)
          FROM episodes e JOIN series se ON se.id = e.series_id
          WHERE e.search_text LIKE ?1 ESCAPE '\\'
+           AND e.source_id IN (SELECT id FROM sources WHERE profile_id = ?2)
          ORDER BY (e.search_text LIKE ?3 ESCAPE '\\') DESC, LENGTH(e.name) ASC
          LIMIT ?4",
     )?;
@@ -171,7 +175,7 @@ fn search_episodes(
     Ok(rows)
 }
 
-fn search_categories(conn: &Connection, contains: &str) -> AppResult<Vec<Category>> {
+fn search_categories(conn: &Connection, profile: i64, contains: &str) -> AppResult<Vec<Category>> {
     let mut stmt = conn.prepare(
         "SELECT cat.id, cat.source_id, cat.kind, cat.name,
                 (CASE cat.kind
@@ -181,11 +185,12 @@ fn search_categories(conn: &Connection, contains: &str) -> AppResult<Vec<Categor
                  END) AS cnt
          FROM categories cat
          WHERE cat.search_text LIKE ?1 ESCAPE '\\'
+           AND cat.source_id IN (SELECT id FROM sources WHERE profile_id = ?2)
          ORDER BY cnt DESC
          LIMIT 12",
     )?;
     let rows = stmt
-        .query_map(params![contains], |r| {
+        .query_map(params![contains, profile], |r| {
             Ok(Category {
                 id: r.get(0)?,
                 source_id: r.get(1)?,
@@ -200,18 +205,19 @@ fn search_categories(conn: &Connection, contains: &str) -> AppResult<Vec<Categor
 
 /// EPG hits limited to programs airing in the next 24h, mapped back to a
 /// local channel when possible.
-fn search_epg(conn: &Connection, contains: &str) -> AppResult<Vec<EpgSearchHit>> {
+fn search_epg(conn: &Connection, profile: i64, contains: &str) -> AppResult<Vec<EpgSearchHit>> {
     let now = now_ts();
     let mut stmt = conn.prepare(
         "SELECT p.title, p.start_ts, p.stop_ts, ch.id, ch.name
          FROM epg_programs p
          LEFT JOIN channels ch ON ch.source_id = p.source_id AND LOWER(COALESCE(ch.tvg_id,'')) = p.channel_key
          WHERE LOWER(p.title) LIKE ?1 ESCAPE '\\' AND p.stop_ts > ?2 AND p.start_ts < ?3
+           AND p.source_id IN (SELECT id FROM sources WHERE profile_id = ?4)
          ORDER BY p.start_ts ASC
          LIMIT 16",
     )?;
     let rows = stmt
-        .query_map(params![contains, now, now + 86_400], |r| {
+        .query_map(params![contains, now, now + 86_400, profile], |r| {
             Ok(EpgSearchHit {
                 title: r.get(0)?,
                 start_ts: r.get(1)?,
@@ -239,6 +245,7 @@ mod tests {
             .write(|c| {
                 sources::add(
                     c,
+                    1,
                     &NewSource {
                         name: "F".into(),
                         kind: "m3u_url".into(),

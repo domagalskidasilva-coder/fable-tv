@@ -38,7 +38,7 @@ export function Row({
 
         <div
           ref={scroller}
-          className="hide-scrollbar row-mask flex gap-4 overflow-x-auto scroll-smooth pb-2 pl-1 pr-6"
+          className="hide-scrollbar row-mask flex gap-4 overflow-x-auto overflow-y-hidden scroll-smooth px-1 py-4 pr-6"
         >
           {children}
         </div>

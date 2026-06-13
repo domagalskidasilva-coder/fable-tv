@@ -160,6 +160,7 @@ pub fn apply_bundle(
         })?;
         sources::add(
             conn,
+            profile,
             &NewSource {
                 name: crate::security::sanitize_name(&src.name, "Fonte importada"),
                 kind: src.kind.clone(),
@@ -244,6 +245,7 @@ mod tests {
             .write(|c| {
                 sources::add(
                     c,
+                    1,
                     &NewSource {
                         name: "Origem".into(),
                         kind: "m3u_url".into(),

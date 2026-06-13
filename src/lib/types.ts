@@ -5,6 +5,7 @@ export type ItemType = "channel" | "movie" | "series" | "episode";
 
 export interface Source {
   id: number;
+  profileId: number;
   name: string;
   kind: SourceKind;
   url: string;
@@ -232,7 +233,17 @@ export interface HistoryEntry {
 export interface Profile {
   id: number;
   name: string;
+  color: string;
   active: boolean;
+  sourceCount: number;
+  channelCount: number;
+  movieCount: number;
+  seriesCount: number;
+}
+
+export interface NewProfile {
+  name: string;
+  color: string | null;
 }
 
 export interface AppStats {

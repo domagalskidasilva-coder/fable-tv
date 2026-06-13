@@ -12,7 +12,7 @@ pub fn get_home_data(conn: &Connection, profile: i64) -> AppResult<HomeData> {
     let latest_movies = latest(conn, profile, "movie", 20)?;
     let latest_series = latest(conn, profile, "series", 20)?;
 
-    let mut live_categories = catalog::list_categories(conn, "live", None)?;
+    let mut live_categories = catalog::list_categories(conn, "live", Some(profile))?;
     live_categories.sort_by(|a, b| b.item_count.cmp(&a.item_count));
     live_categories.truncate(12);
 
@@ -21,10 +21,10 @@ pub fn get_home_data(conn: &Connection, profile: i64) -> AppResult<HomeData> {
                 (SELECT COUNT(*) FROM channels c WHERE c.source_id = s.id),
                 (SELECT COUNT(*) FROM movies m WHERE m.source_id = s.id),
                 (SELECT COUNT(*) FROM series se WHERE se.source_id = s.id)
-         FROM sources s ORDER BY s.created_at ASC",
+         FROM sources s WHERE s.profile_id = ?1 ORDER BY s.created_at ASC",
     )?;
     let sources = stmt
-        .query_map([], |r| {
+        .query_map(params![profile], |r| {
             Ok(SourceStatus {
                 id: r.get(0)?,
                 name: r.get(1)?,
@@ -54,12 +54,14 @@ fn latest(conn: &Connection, profile: i64, kind: &str, limit: i64) -> AppResult<
         "movie" => {
             "SELECT m.id, m.name, COALESCE(m.logo_path, m.logo_url), m.year, m.source_id,
                     EXISTS(SELECT 1 FROM favorites f WHERE f.profile_id = ?1 AND f.item_type='movie' AND f.item_id = m.id)
-             FROM movies m ORDER BY m.created_at DESC, m.id DESC LIMIT ?2"
+             FROM movies m WHERE m.source_id IN (SELECT id FROM sources WHERE profile_id = ?1)
+             ORDER BY m.created_at DESC, m.id DESC LIMIT ?2"
         }
         _ => {
             "SELECT se.id, se.name, COALESCE(se.cover_path, se.cover_url), se.year, se.source_id,
                     EXISTS(SELECT 1 FROM favorites f WHERE f.profile_id = ?1 AND f.item_type='series' AND f.item_id = se.id)
-             FROM series se ORDER BY se.created_at DESC, se.id DESC LIMIT ?2"
+             FROM series se WHERE se.source_id IN (SELECT id FROM sources WHERE profile_id = ?1)
+             ORDER BY se.created_at DESC, se.id DESC LIMIT ?2"
         }
     };
     let mut stmt = conn.prepare(sql)?;

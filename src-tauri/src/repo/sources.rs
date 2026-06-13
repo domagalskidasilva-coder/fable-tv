@@ -49,9 +49,10 @@ pub fn get_row(conn: &Connection, id: i64) -> AppResult<SourceRow> {
     .ok_or_else(|| AppError::NotFound(format!("fonte {id}")))
 }
 
-pub fn list(conn: &Connection) -> AppResult<Vec<Source>> {
+/// Lists the playlists belonging to one profile.
+pub fn list_for_profile(conn: &Connection, profile_id: i64) -> AppResult<Vec<Source>> {
     let mut stmt = conn.prepare(
-        "SELECT s.id, s.name, s.kind, s.url, s.username,
+        "SELECT s.id, s.profile_id, s.name, s.kind, s.url, s.username,
                 s.password IS NOT NULL AND s.password != '',
                 s.epg_url, s.sync_channels, s.sync_movies, s.sync_series,
                 s.sync_epg, s.sync_logos, s.created_at, s.last_sync_at, s.last_sync_status,
@@ -59,40 +60,42 @@ pub fn list(conn: &Connection) -> AppResult<Vec<Source>> {
                 (SELECT COUNT(*) FROM movies m WHERE m.source_id = s.id),
                 (SELECT COUNT(*) FROM series se WHERE se.source_id = s.id),
                 (SELECT COUNT(*) FROM epg_programs p WHERE p.source_id = s.id)
-         FROM sources s ORDER BY s.created_at ASC",
+         FROM sources s WHERE s.profile_id = ?1 ORDER BY s.created_at ASC",
     )?;
-    let rows = stmt.query_map([], |r| {
+    let rows = stmt.query_map(params![profile_id], |r| {
         Ok(Source {
             id: r.get(0)?,
-            name: r.get(1)?,
-            kind: r.get(2)?,
-            url: r.get(3)?,
-            username: r.get(4)?,
-            has_password: r.get::<_, i64>(5)? != 0,
-            epg_url: r.get(6)?,
-            sync_channels: r.get::<_, i64>(7)? != 0,
-            sync_movies: r.get::<_, i64>(8)? != 0,
-            sync_series: r.get::<_, i64>(9)? != 0,
-            sync_epg: r.get::<_, i64>(10)? != 0,
-            sync_logos: r.get::<_, i64>(11)? != 0,
-            created_at: r.get(12)?,
-            last_sync_at: r.get(13)?,
-            last_sync_status: r.get(14)?,
-            channel_count: r.get(15)?,
-            movie_count: r.get(16)?,
-            series_count: r.get(17)?,
-            epg_count: r.get(18)?,
+            profile_id: r.get(1)?,
+            name: r.get(2)?,
+            kind: r.get(3)?,
+            url: r.get(4)?,
+            username: r.get(5)?,
+            has_password: r.get::<_, i64>(6)? != 0,
+            epg_url: r.get(7)?,
+            sync_channels: r.get::<_, i64>(8)? != 0,
+            sync_movies: r.get::<_, i64>(9)? != 0,
+            sync_series: r.get::<_, i64>(10)? != 0,
+            sync_epg: r.get::<_, i64>(11)? != 0,
+            sync_logos: r.get::<_, i64>(12)? != 0,
+            created_at: r.get(13)?,
+            last_sync_at: r.get(14)?,
+            last_sync_status: r.get(15)?,
+            channel_count: r.get(16)?,
+            movie_count: r.get(17)?,
+            series_count: r.get(18)?,
+            epg_count: r.get(19)?,
         })
     })?;
     Ok(rows.collect::<Result<Vec<_>, _>>()?)
 }
 
-pub fn add(conn: &Connection, s: &NewSource) -> AppResult<i64> {
+pub fn add(conn: &Connection, profile_id: i64, s: &NewSource) -> AppResult<i64> {
     conn.execute(
-        "INSERT INTO sources (name, kind, url, username, password, epg_url,
+        "INSERT INTO sources (profile_id, name, kind, url, username, password, epg_url,
             sync_channels, sync_movies, sync_series, sync_epg, sync_logos, created_at)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)",
         params![
+            profile_id,
             s.name,
             s.kind,
             s.url,
@@ -197,10 +200,11 @@ mod tests {
     #[test]
     fn crud_roundtrip() {
         let db = temp_db();
-        let id = db.write(|c| add(c, &new_source("Fonte A"))).unwrap();
-        let listed = db.read(|c| list(c)).unwrap();
+        let id = db.write(|c| add(c, 1, &new_source("Fonte A"))).unwrap();
+        let listed = db.read(|c| list_for_profile(c, 1)).unwrap();
         assert_eq!(listed.len(), 1);
         assert_eq!(listed[0].name, "Fonte A");
+        assert_eq!(listed[0].profile_id, 1);
         assert!(listed[0].has_password);
         assert!(!listed[0].sync_series);
 
@@ -218,7 +222,7 @@ mod tests {
     #[test]
     fn epg_url_only_set_when_empty() {
         let db = temp_db();
-        let id = db.write(|c| add(c, &new_source("F"))).unwrap();
+        let id = db.write(|c| add(c, 1, &new_source("F"))).unwrap();
         db.write(|c| set_epg_url_if_empty(c, id, "http://a/epg.xml")).unwrap();
         db.write(|c| set_epg_url_if_empty(c, id, "http://b/epg.xml")).unwrap();
         let row = db.read(|c| get_row(c, id)).unwrap();

@@ -5,6 +5,7 @@ use std::collections::HashMap;
 #[serde(rename_all = "camelCase")]
 pub struct Source {
     pub id: i64,
+    pub profile_id: i64,
     pub name: String,
     /// "m3u_url" | "m3u_file" | "xc_api"
     pub kind: String,
@@ -100,6 +101,9 @@ pub struct Paged<T> {
 #[derive(Debug, Clone, Default, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 pub struct CatalogFilter {
+    /// Scopes results to one profile's playlists (set server-side from the
+    /// active profile). When set, only that profile's catalog is returned.
+    pub profile_id: Option<i64>,
     pub source_id: Option<i64>,
     pub category_id: Option<i64>,
     pub search: Option<String>,
@@ -266,7 +270,19 @@ pub struct HistoryEntry {
 pub struct Profile {
     pub id: i64,
     pub name: String,
+    pub color: String,
     pub active: bool,
+    pub source_count: i64,
+    pub channel_count: i64,
+    pub movie_count: i64,
+    pub series_count: i64,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NewProfile {
+    pub name: String,
+    pub color: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]

@@ -1,20 +1,17 @@
 import { useCallback, useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { open as openDialog, save as saveDialog } from "@tauri-apps/plugin-dialog";
 import { Button, Confirm, Field, inputClass, Toggle } from "../components/ui";
 import {
   clearCache,
-  createProfile,
-  deleteProfile,
   exportData,
   getAppStats,
   getSettings,
   importData,
-  listProfiles,
-  setActiveProfile,
   setSetting,
 } from "../lib/api";
 import { useI18n, type Language } from "../lib/i18n";
-import type { AppStats, Profile, Settings as SettingsMap } from "../lib/types";
+import type { AppStats, Settings as SettingsMap } from "../lib/types";
 import { cx, errorMessage, formatBytes } from "../lib/utils";
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
@@ -32,16 +29,14 @@ export default function Settings({
   onSettingsChanged: () => void;
 }) {
   const { t } = useI18n();
+  const navigate = useNavigate();
   const [settings, setSettingsState] = useState<SettingsMap>({});
-  const [profiles, setProfiles] = useState<Profile[]>([]);
   const [stats, setStats] = useState<AppStats | null>(null);
-  const [newProfile, setNewProfile] = useState("");
   const [notice, setNotice] = useState<string | null>(null);
   const [confirmClearAll, setConfirmClearAll] = useState(false);
 
   const load = useCallback(() => {
     getSettings().then(setSettingsState).catch(() => undefined);
-    listProfiles().then(setProfiles).catch(() => undefined);
     getAppStats().then(setStats).catch(() => undefined);
   }, []);
 
@@ -197,70 +192,10 @@ export default function Settings({
         </Section>
 
         <Section title={t("settings.profiles")}>
-          <div className="mb-3 flex flex-wrap gap-2">
-            {profiles.map((p) => (
-              <span
-                key={p.id}
-                className={cx(
-                  "flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm",
-                  p.active
-                    ? "border-accent bg-accent-soft font-semibold text-accent-strong"
-                    : "border-line bg-bg-elevated text-ink-dim",
-                )}
-              >
-                <button
-                  data-nav
-                  onClick={() =>
-                    setActiveProfile(p.id)
-                      .then(() => {
-                        load();
-                        onSettingsChanged();
-                      })
-                      .catch(() => undefined)
-                  }
-                >
-                  {p.name}
-                </button>
-                {profiles.length > 1 && (
-                  <button
-                    data-nav
-                    aria-label={t("common.delete")}
-                    onClick={() =>
-                      deleteProfile(p.id)
-                        .then(load)
-                        .catch((e) => setNotice(errorMessage(e)))
-                    }
-                    className="text-ink-dim hover:text-danger"
-                  >
-                    ×
-                  </button>
-                )}
-              </span>
-            ))}
-          </div>
-          <div className="flex gap-2">
-            <input
-              data-nav
-              className={cx(inputClass, "max-w-xs")}
-              placeholder={t("settings.newProfile")}
-              value={newProfile}
-              onChange={(e) => setNewProfile(e.target.value)}
-            />
-            <Button
-              variant="ghost"
-              disabled={!newProfile.trim()}
-              onClick={() =>
-                createProfile(newProfile.trim())
-                  .then(() => {
-                    setNewProfile("");
-                    load();
-                  })
-                  .catch((e) => setNotice(errorMessage(e)))
-              }
-            >
-              {t("common.add")}
-            </Button>
-          </div>
+          <p className="mb-3 text-sm leading-relaxed text-ink-dim">{t("profiles.subtitle")}</p>
+          <Button variant="ghost" onClick={() => navigate("/profiles")}>
+            {t("who.manage")}
+          </Button>
         </Section>
 
         <Section title={t("settings.data")}>

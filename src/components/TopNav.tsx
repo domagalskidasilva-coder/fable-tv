@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
-import { createProfile, listProfiles, setActiveProfile } from "../lib/api";
+import { listProfiles } from "../lib/api";
 import { useI18n } from "../lib/i18n";
 import type { Profile } from "../lib/types";
 import { cx } from "../lib/utils";
@@ -16,22 +16,22 @@ const PATHS: Record<string, string> = {
   favorites: "/favorites",
   search: "/search",
   history: "/history",
-  sources: "/sources",
+  profiles: "/profiles",
   settings: "/settings",
 };
 
-function ProfileMenu({ onChanged }: { onChanged: () => void }) {
+function ProfileMenu({ onSwitchProfile }: { onSwitchProfile: () => void }) {
   const { t } = useI18n();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
-  const [profiles, setProfiles] = useState<Profile[]>([]);
-  const [creating, setCreating] = useState("");
+  const [active, setActive] = useState<Profile | null>(null);
   const wrap = useRef<HTMLDivElement>(null);
 
-  const load = () => listProfiles().then(setProfiles).catch(() => undefined);
   useEffect(() => {
-    load();
-  }, []);
+    listProfiles()
+      .then((ps) => setActive(ps.find((p) => p.active) ?? ps[0] ?? null))
+      .catch(() => undefined);
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
@@ -44,25 +44,19 @@ function ProfileMenu({ onChanged }: { onChanged: () => void }) {
 
   const { rendered, ref } = usePresence(
     open,
-    (el) => gsap.fromTo(el, { autoAlpha: 0, y: -8, scale: 0.96 }, { autoAlpha: 1, y: 0, scale: 1, duration: 0.25, ease: EASE.pop, transformOrigin: "top right" }),
+    (el) => gsap.fromTo(el, { autoAlpha: 0, y: -8, scale: 0.96 }, { autoAlpha: 1, y: 0, scale: 1, duration: 0.22, ease: EASE.pop, transformOrigin: "top right" }),
     (el) => gsap.to(el, { autoAlpha: 0, y: -8, scale: 0.97, duration: 0.15, ease: EASE.soft }),
   );
 
-  const active = profiles.find((p) => p.active);
-  const initial = (active?.name ?? "F").slice(0, 1).toUpperCase();
-
-  const switchTo = async (id: number) => {
-    await setActiveProfile(id).catch(() => undefined);
+  const go = (path: string) => {
     setOpen(false);
-    await load();
-    onChanged();
-    navigate("/");
+    navigate(path);
   };
 
-  const secondary: Array<["history" | "sources" | "settings", string]> = [
-    ["history", "nav.history"],
-    ["sources", "nav.sources"],
-    ["settings", "nav.settings"],
+  const links: Array<[string, string]> = [
+    ["/profiles", "nav.profiles"],
+    ["/history", "nav.history"],
+    ["/settings", "nav.settings"],
   ];
 
   return (
@@ -71,66 +65,51 @@ function ProfileMenu({ onChanged }: { onChanged: () => void }) {
         data-nav
         onClick={() => setOpen((v) => !v)}
         aria-label="perfil"
-        className="grid h-9 w-9 place-items-center rounded-full bg-brand text-sm font-bold text-white shadow-md transition-transform hover:scale-105"
+        className="grid h-9 w-9 place-items-center rounded-lg text-sm font-bold text-bg shadow-sm transition-transform hover:scale-105"
+        style={{ background: active?.color ?? "var(--accent)" }}
       >
-        {initial}
+        {(active?.name ?? "F").slice(0, 1).toUpperCase()}
       </button>
 
       {rendered && (
         <div
           ref={ref}
-          className="absolute right-0 top-12 z-50 w-60 overflow-hidden rounded-2xl border border-line bg-bg-elevated/95 p-2 shadow-2xl backdrop-blur-xl"
+          className="absolute right-0 top-12 z-50 w-64 overflow-hidden rounded-2xl border border-line bg-bg-elevated/95 p-2 shadow-2xl backdrop-blur-xl"
         >
-          <p className="px-3 pb-1 pt-2 text-[11px] font-semibold uppercase tracking-wider text-ink-faint">
-            {t("settings.profiles")}
-          </p>
-          {profiles.map((p) => (
-            <button
-              key={p.id}
-              data-nav
-              onClick={() => switchTo(p.id)}
-              className={cx(
-                "flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm transition-colors",
-                p.active ? "bg-accent-soft font-semibold text-accent-strong" : "text-ink-dim hover:bg-surface-hover hover:text-ink",
-              )}
+          <div className="flex items-center gap-3 rounded-xl px-3 py-2.5">
+            <span
+              className="grid h-9 w-9 place-items-center rounded-lg text-sm font-bold text-bg"
+              style={{ background: active?.color ?? "var(--accent)" }}
             >
-              <span className="grid h-6 w-6 place-items-center rounded-full bg-brand text-[11px] font-bold text-white">
-                {p.name.slice(0, 1).toUpperCase()}
-              </span>
-              <span className="truncate">{p.name}</span>
-              {p.active && <span className="ml-auto text-ok">✓</span>}
-            </button>
-          ))}
-          <div className="flex gap-1 px-1 py-1.5">
-            <input
-              value={creating}
-              onChange={(e) => setCreating(e.target.value)}
-              placeholder={t("settings.newProfile")}
-              className="min-w-0 flex-1 rounded-lg border border-line bg-surface px-2 py-1.5 text-xs text-ink placeholder:text-ink-faint focus:border-accent focus:outline-none"
-            />
-            <button
-              data-nav
-              disabled={!creating.trim()}
-              onClick={async () => {
-                await createProfile(creating.trim()).catch(() => undefined);
-                setCreating("");
-                load();
-              }}
-              className="rounded-lg bg-accent-soft px-2 py-1.5 text-xs font-semibold text-accent-strong disabled:opacity-40"
-            >
-              +
-            </button>
+              {(active?.name ?? "F").slice(0, 1).toUpperCase()}
+            </span>
+            <div className="min-w-0">
+              <p className="truncate text-sm font-semibold text-ink">{active?.name ?? "Fable"}</p>
+              <p className="text-[11px] text-ink-faint">{t("profiles.active")}</p>
+            </div>
           </div>
 
+          <button
+            data-nav
+            onClick={() => {
+              setOpen(false);
+              onSwitchProfile();
+            }}
+            className="mb-1 flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm font-medium text-ink transition-colors hover:bg-surface-hover"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M8 3 4 7l4 4" /><path d="M4 7h12a4 4 0 0 1 4 4v0" />
+              <path d="m16 21 4-4-4-4" /><path d="M20 17H8a4 4 0 0 1-4-4v0" />
+            </svg>
+            {t("profiles.switch")}
+          </button>
+
           <div className="my-1 h-px bg-line" />
-          {secondary.map(([key, label]) => (
+          {links.map(([path, label]) => (
             <button
-              key={key}
+              key={path}
               data-nav
-              onClick={() => {
-                setOpen(false);
-                navigate(PATHS[key]);
-              }}
+              onClick={() => go(path)}
               className="flex w-full items-center rounded-xl px-3 py-2 text-left text-sm text-ink-dim transition-colors hover:bg-surface-hover hover:text-ink"
             >
               {t(label)}
@@ -142,7 +121,12 @@ function ProfileMenu({ onChanged }: { onChanged: () => void }) {
   );
 }
 
-export function TopNav({ onSettingsChanged }: { onSettingsChanged: () => void }) {
+export function TopNav({
+  onSwitchProfile,
+}: {
+  onSettingsChanged: () => void;
+  onSwitchProfile: () => void;
+}) {
   const { t } = useI18n();
   const navigate = useNavigate();
   const [scrolled, setScrolled] = useState(false);
@@ -175,11 +159,11 @@ export function TopNav({ onSettingsChanged }: { onSettingsChanged: () => void })
           className="flex items-center gap-2"
           aria-label="Fable TV"
         >
-          <span className="grid h-8 w-8 place-items-center rounded-xl bg-brand text-base font-black text-white shadow-lg">
+          <span className="grid h-7 w-7 place-items-center rounded-md bg-brand text-sm font-black">
             F
           </span>
-          <span className="hidden text-lg font-extrabold tracking-tight text-ink sm:inline">
-            Fable<span className="text-brand">TV</span>
+          <span className="font-display hidden text-[19px] font-extrabold tracking-cine text-ink sm:inline">
+            Fable<span className="text-ink-faint font-semibold">TV</span>
           </span>
         </button>
 
@@ -221,7 +205,7 @@ export function TopNav({ onSettingsChanged }: { onSettingsChanged: () => void })
               <path d="m21 21-4.3-4.3" />
             </svg>
           </NavLink>
-          <ProfileMenu onChanged={onSettingsChanged} />
+          <ProfileMenu onSwitchProfile={onSwitchProfile} />
         </div>
       </div>
     </header>

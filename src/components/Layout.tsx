@@ -82,9 +82,11 @@ function SyncToasts() {
 export function Layout({
   children,
   onSettingsChanged,
+  onSwitchProfile,
 }: {
   children: ReactNode;
   onSettingsChanged: () => void;
+  onSwitchProfile: () => void;
 }) {
   const navigate = useNavigate();
   const location = useLocation();
@@ -127,7 +129,7 @@ export function Layout({
         </div>
       </main>
 
-      <TopNav onSettingsChanged={onSettingsChanged} />
+      <TopNav onSettingsChanged={onSettingsChanged} onSwitchProfile={onSwitchProfile} />
       <BottomNav />
       <SyncToasts />
     </div>

@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
 import { HashRouter, Route, Routes, useLocation } from "react-router-dom";
 import { Layout } from "./components/Layout";
-import { getSettings } from "./lib/api";
+import { getSettings, listProfiles } from "./lib/api";
 import { I18nProvider, type Language } from "./lib/i18n";
+import { Spinner } from "./components/ui";
 import CatalogPage from "./pages/CatalogPage";
 import Favorites from "./pages/Favorites";
 import History from "./pages/History";
@@ -10,12 +11,19 @@ import Home from "./pages/Home";
 import LiveTV from "./pages/LiveTV";
 import MovieDetail from "./pages/MovieDetail";
 import Player from "./pages/Player";
+import Profiles from "./pages/Profiles";
 import Search from "./pages/Search";
 import SeriesDetail from "./pages/SeriesDetail";
 import Settings from "./pages/Settings";
-import Sources from "./pages/Sources";
+import WhoIsWatching from "./pages/WhoIsWatching";
 
-function Shell({ onSettingsChanged }: { onSettingsChanged: () => void }) {
+function Shell({
+  onSettingsChanged,
+  onSwitchProfile,
+}: {
+  onSettingsChanged: () => void;
+  onSwitchProfile: () => void;
+}) {
   const location = useLocation();
   const isPlayer = location.pathname.startsWith("/player/");
 
@@ -28,7 +36,7 @@ function Shell({ onSettingsChanged }: { onSettingsChanged: () => void }) {
   }
 
   return (
-    <Layout onSettingsChanged={onSettingsChanged}>
+    <Layout onSettingsChanged={onSettingsChanged} onSwitchProfile={onSwitchProfile}>
       <Routes location={location}>
         <Route path="/" element={<Home />} />
         <Route path="/live" element={<LiveTV />} />
@@ -39,7 +47,7 @@ function Shell({ onSettingsChanged }: { onSettingsChanged: () => void }) {
         <Route path="/search" element={<Search />} />
         <Route path="/favorites" element={<Favorites />} />
         <Route path="/history" element={<History />} />
-        <Route path="/sources" element={<Sources />} />
+        <Route path="/profiles" element={<Profiles onProfileChanged={onSettingsChanged} />} />
         <Route path="/settings" element={<Settings onSettingsChanged={onSettingsChanged} />} />
         <Route path="*" element={<Home />} />
       </Routes>
@@ -47,9 +55,12 @@ function Shell({ onSettingsChanged }: { onSettingsChanged: () => void }) {
   );
 }
 
+type Phase = "loading" | "gate" | "app";
+
 export default function App() {
   const [lang, setLang] = useState<Language>("pt-BR");
   const [theme, setTheme] = useState("dark");
+  const [phase, setPhase] = useState<Phase>("loading");
 
   const refreshSettings = useCallback(() => {
     getSettings()
@@ -62,6 +73,13 @@ export default function App() {
 
   useEffect(refreshSettings, [refreshSettings]);
 
+  // On launch, show the profile gate only when there's a real choice to make.
+  useEffect(() => {
+    listProfiles()
+      .then((ps) => setPhase(ps.length > 1 ? "gate" : "app"))
+      .catch(() => setPhase("app"));
+  }, []);
+
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
   }, [theme]);
@@ -69,7 +87,15 @@ export default function App() {
   return (
     <I18nProvider lang={lang}>
       <HashRouter>
-        <Shell onSettingsChanged={refreshSettings} />
+        {phase === "loading" ? (
+          <div className="grid h-screen place-items-center">
+            <Spinner />
+          </div>
+        ) : phase === "gate" ? (
+          <WhoIsWatching onEnter={() => setPhase("app")} />
+        ) : (
+          <Shell onSettingsChanged={refreshSettings} onSwitchProfile={() => setPhase("gate")} />
+        )}
       </HashRouter>
     </I18nProvider>
   );

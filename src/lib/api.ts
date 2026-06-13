@@ -15,6 +15,7 @@ import type {
   ItemType,
   MediaCard,
   MovieDetail,
+  NewProfile,
   NewSource,
   NowNext,
   Paged,
@@ -28,9 +29,11 @@ import type {
   SyncProgress,
 } from "./types";
 
-// Sources
-export const listSources = () => invoke<Source[]>("list_sources");
-export const addSource = (source: NewSource) => invoke<number>("add_source", { source });
+// Playlists (sources) — scoped to a profile
+export const listSources = (profileId?: number) =>
+  invoke<Source[]>("list_sources", { profileId: profileId ?? null });
+export const addSource = (source: NewSource, profileId?: number) =>
+  invoke<number>("add_source", { source, profileId: profileId ?? null });
 export const updateSource = (id: number, source: NewSource) =>
   invoke<void>("update_source", { id, source });
 export const deleteSource = (id: number) => invoke<void>("delete_source", { id });
@@ -45,8 +48,8 @@ export const onSyncProgress = (cb: (p: SyncProgress) => void): Promise<UnlistenF
   listen<SyncProgress>("sync://progress", (e) => cb(e.payload));
 
 // Catalog
-export const listCategories = (kind: "live" | "movie" | "series", sourceId?: number | null) =>
-  invoke<Category[]>("list_categories", { kind, sourceId: sourceId ?? null });
+export const listCategories = (kind: "live" | "movie" | "series") =>
+  invoke<Category[]>("list_categories", { kind });
 export const listChannels = (filter: CatalogFilter) =>
   invoke<Paged<MediaCard>>("list_channels", { filter });
 export const listMovies = (filter: CatalogFilter) =>
@@ -90,7 +93,9 @@ export const getSettings = () => invoke<Settings>("get_settings");
 export const setSetting = (key: string, value: string) =>
   invoke<void>("set_setting", { key, value });
 export const listProfiles = () => invoke<Profile[]>("list_profiles");
-export const createProfile = (name: string) => invoke<number>("create_profile", { name });
+export const createProfile = (profile: NewProfile) => invoke<number>("create_profile", { profile });
+export const updateProfile = (id: number, profile: NewProfile) =>
+  invoke<void>("update_profile", { id, profile });
 export const deleteProfile = (id: number) => invoke<void>("delete_profile", { id });
 export const setActiveProfile = (id: number) => invoke<void>("set_active_profile", { id });
 

@@ -313,6 +313,13 @@ struct FilterSql {
 fn build_filter(filter: &CatalogFilter, table_alias: &str, item_type: &str, profile: i64) -> FilterSql {
     let mut conds: Vec<String> = vec!["1=1".into()];
     let mut values: Vec<SqlValue> = Vec::new();
+    if let Some(pid) = filter.profile_id {
+        values.push(SqlValue::Integer(pid));
+        conds.push(format!(
+            "{table_alias}.source_id IN (SELECT id FROM sources WHERE profile_id = ?{})",
+            values.len()
+        ));
+    }
     if let Some(sid) = filter.source_id {
         values.push(SqlValue::Integer(sid));
         conds.push(format!("{table_alias}.source_id = ?{}", values.len()));
@@ -510,7 +517,7 @@ pub fn list_series(
 pub fn list_categories(
     conn: &Connection,
     kind: &str,
-    source_id: Option<i64>,
+    profile_id: Option<i64>,
 ) -> AppResult<Vec<Category>> {
     let count_table = match kind {
         "live" => "channels",
@@ -524,9 +531,9 @@ pub fn list_categories(
          FROM categories cat WHERE cat.kind = ?1"
     );
     let mut values: Vec<SqlValue> = vec![SqlValue::Text(kind.to_string())];
-    if let Some(sid) = source_id {
-        values.push(SqlValue::Integer(sid));
-        sql.push_str(" AND cat.source_id = ?2");
+    if let Some(pid) = profile_id {
+        values.push(SqlValue::Integer(pid));
+        sql.push_str(" AND cat.source_id IN (SELECT id FROM sources WHERE profile_id = ?2)");
     }
     sql.push_str(" ORDER BY cat.name COLLATE NOCASE ASC");
     let mut stmt = conn.prepare(&sql)?;
@@ -899,6 +906,7 @@ mod tests {
         db.write(|c| {
             sources::add(
                 c,
+                1,
                 &NewSource {
                     name: "Teste".into(),
                     kind: "m3u_url".into(),

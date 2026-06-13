@@ -93,11 +93,11 @@ export function Button({
   autoFocus?: boolean;
 }) {
   const styles = {
-    primary: "bg-brand text-white shadow-lg hover:brightness-110 glow-accent",
-    light: "bg-white text-black hover:bg-white/90 shadow-lg",
-    soft: "bg-accent-soft text-accent-strong hover:bg-accent hover:text-white",
-    ghost: "bg-white/8 text-ink hover:bg-white/15 border border-line/60 backdrop-blur",
-    danger: "bg-danger/15 text-danger hover:bg-danger hover:text-white",
+    primary: "bg-ink text-bg hover:bg-ink/90",
+    light: "bg-ink text-bg hover:bg-ink/90",
+    soft: "bg-accent-soft text-accent-strong hover:bg-accent hover:text-bg",
+    ghost: "bg-white/10 text-ink hover:bg-white/[0.16] border border-line",
+    danger: "bg-danger/15 text-danger hover:bg-danger hover:text-bg",
   }[variant];
   return (
     <button

@@ -43,15 +43,36 @@ fn validate_new_source(s: &NewSource) -> AppResult<NewSource> {
 // Sources
 // ---------------------------------------------------------------------------
 
+/// Lists the playlists of one profile (defaults to the active profile).
 #[tauri::command]
-pub async fn list_sources(state: State<'_, AppState>) -> AppResult<Vec<Source>> {
-    state.db.read_async(sources::list).await
+pub async fn list_sources(
+    state: State<'_, AppState>,
+    profile_id: Option<i64>,
+) -> AppResult<Vec<Source>> {
+    state
+        .db
+        .read_async(move |c| {
+            let pid = profile_id.unwrap_or_else(|| settings::active_profile(c));
+            sources::list_for_profile(c, pid)
+        })
+        .await
 }
 
+/// Adds a playlist to a profile (defaults to the active profile).
 #[tauri::command]
-pub async fn add_source(state: State<'_, AppState>, source: NewSource) -> AppResult<i64> {
+pub async fn add_source(
+    state: State<'_, AppState>,
+    source: NewSource,
+    profile_id: Option<i64>,
+) -> AppResult<i64> {
     let source = validate_new_source(&source)?;
-    state.db.write_async(move |c| sources::add(c, &source)).await
+    state
+        .db
+        .write_async(move |c| {
+            let pid = profile_id.unwrap_or_else(|| settings::active_profile(c));
+            sources::add(c, pid, &source)
+        })
+        .await
 }
 
 #[tauri::command]
@@ -157,23 +178,26 @@ pub fn list_active_jobs(state: State<'_, AppState>) -> Vec<ActiveJob> {
 pub async fn list_categories(
     state: State<'_, AppState>,
     kind: String,
-    source_id: Option<i64>,
 ) -> AppResult<Vec<Category>> {
     state
         .db
-        .read_async(move |c| catalog::list_categories(c, &kind, source_id))
+        .read_async(move |c| {
+            let profile = settings::active_profile(c);
+            catalog::list_categories(c, &kind, Some(profile))
+        })
         .await
 }
 
 #[tauri::command]
 pub async fn list_channels(
     state: State<'_, AppState>,
-    filter: CatalogFilter,
+    mut filter: CatalogFilter,
 ) -> AppResult<Paged<MediaCard>> {
     state
         .db
         .read_async(move |c| {
             let profile = settings::active_profile(c);
+            filter.profile_id = Some(profile);
             catalog::list_channels(c, profile, &filter)
         })
         .await
@@ -182,12 +206,13 @@ pub async fn list_channels(
 #[tauri::command]
 pub async fn list_movies(
     state: State<'_, AppState>,
-    filter: CatalogFilter,
+    mut filter: CatalogFilter,
 ) -> AppResult<Paged<MediaCard>> {
     state
         .db
         .read_async(move |c| {
             let profile = settings::active_profile(c);
+            filter.profile_id = Some(profile);
             catalog::list_movies(c, profile, &filter)
         })
         .await
@@ -196,12 +221,13 @@ pub async fn list_movies(
 #[tauri::command]
 pub async fn list_series(
     state: State<'_, AppState>,
-    filter: CatalogFilter,
+    mut filter: CatalogFilter,
 ) -> AppResult<Paged<MediaCard>> {
     state
         .db
         .read_async(move |c| {
             let profile = settings::active_profile(c);
+            filter.profile_id = Some(profile);
             catalog::list_series(c, profile, &filter)
         })
         .await
@@ -473,10 +499,22 @@ pub async fn list_profiles(state: State<'_, AppState>) -> AppResult<Vec<Profile>
 }
 
 #[tauri::command]
-pub async fn create_profile(state: State<'_, AppState>, name: String) -> AppResult<i64> {
+pub async fn create_profile(state: State<'_, AppState>, profile: NewProfile) -> AppResult<i64> {
     state
         .db
-        .write_async(move |c| user_data::create_profile(c, &name))
+        .write_async(move |c| user_data::create_profile(c, &profile.name, profile.color.as_deref()))
+        .await
+}
+
+#[tauri::command]
+pub async fn update_profile(
+    state: State<'_, AppState>,
+    id: i64,
+    profile: NewProfile,
+) -> AppResult<()> {
+    state
+        .db
+        .write_async(move |c| user_data::update_profile(c, id, &profile.name, profile.color.as_deref()))
         .await
 }
 

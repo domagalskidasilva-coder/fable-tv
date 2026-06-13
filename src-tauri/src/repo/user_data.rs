@@ -198,22 +198,40 @@ pub fn clear_history(conn: &Connection, profile: i64) -> AppResult<()> {
 // Profiles
 // ---------------------------------------------------------------------------
 
+const DEFAULT_COLOR: &str = "#e8b65a";
+
 pub fn list_profiles(conn: &Connection, active_id: i64) -> AppResult<Vec<Profile>> {
-    let mut stmt = conn.prepare("SELECT id, name FROM profiles ORDER BY created_at ASC")?;
+    let mut stmt = conn.prepare(
+        "SELECT p.id, p.name, p.color,
+                (SELECT COUNT(*) FROM sources s WHERE s.profile_id = p.id),
+                (SELECT COUNT(*) FROM channels c JOIN sources s ON s.id = c.source_id WHERE s.profile_id = p.id),
+                (SELECT COUNT(*) FROM movies m JOIN sources s ON s.id = m.source_id WHERE s.profile_id = p.id),
+                (SELECT COUNT(*) FROM series se JOIN sources s ON s.id = se.source_id WHERE s.profile_id = p.id)
+         FROM profiles p ORDER BY p.created_at ASC",
+    )?;
     let rows = stmt
-        .query_map([], |r| Ok((r.get::<_, i64>(0)?, r.get::<_, String>(1)?)))?
+        .query_map([], |r| {
+            Ok(Profile {
+                id: r.get(0)?,
+                name: r.get(1)?,
+                color: r.get(2)?,
+                active: r.get::<_, i64>(0)? == active_id,
+                source_count: r.get(3)?,
+                channel_count: r.get(4)?,
+                movie_count: r.get(5)?,
+                series_count: r.get(6)?,
+            })
+        })?
         .collect::<Result<Vec<_>, _>>()?;
-    Ok(rows
-        .into_iter()
-        .map(|(id, name)| Profile { id, name, active: id == active_id })
-        .collect())
+    Ok(rows)
 }
 
-pub fn create_profile(conn: &Connection, name: &str) -> AppResult<i64> {
+pub fn create_profile(conn: &Connection, name: &str, color: Option<&str>) -> AppResult<i64> {
     let name = crate::security::sanitize_name(name, "Perfil");
+    let color = sanitize_color(color);
     conn.execute(
-        "INSERT INTO profiles (name, created_at) VALUES (?1, ?2)",
-        params![name, now_ts()],
+        "INSERT INTO profiles (name, color, created_at) VALUES (?1, ?2, ?3)",
+        params![name, color, now_ts()],
     )
     .map_err(|e| match e {
         rusqlite::Error::SqliteFailure(err, _)
@@ -226,13 +244,48 @@ pub fn create_profile(conn: &Connection, name: &str) -> AppResult<i64> {
     Ok(conn.last_insert_rowid())
 }
 
+pub fn update_profile(conn: &Connection, id: i64, name: &str, color: Option<&str>) -> AppResult<()> {
+    let name = crate::security::sanitize_name(name, "Perfil");
+    let color = sanitize_color(color);
+    conn.execute(
+        "UPDATE profiles SET name = ?1, color = ?2 WHERE id = ?3",
+        params![name, color, id],
+    )
+    .map_err(|e| match e {
+        rusqlite::Error::SqliteFailure(err, _)
+            if err.code == rusqlite::ErrorCode::ConstraintViolation =>
+        {
+            AppError::Invalid("já existe um perfil com esse nome".into())
+        }
+        other => AppError::Db(other),
+    })?;
+    Ok(())
+}
+
 pub fn delete_profile(conn: &Connection, id: i64) -> AppResult<()> {
     let count: i64 = conn.query_row("SELECT COUNT(*) FROM profiles", [], |r| r.get(0))?;
     if count <= 1 {
         return Err(AppError::Invalid("não é possível excluir o único perfil".into()));
     }
+    // Remove the profile's playlists first (cascading their cached catalog),
+    // then the profile itself (cascading its favorites/history).
+    conn.execute("DELETE FROM sources WHERE profile_id = ?1", params![id])?;
     conn.execute("DELETE FROM profiles WHERE id = ?1", params![id])?;
     Ok(())
+}
+
+/// Accepts only `#rrggbb`; falls back to the brand amber otherwise.
+fn sanitize_color(color: Option<&str>) -> String {
+    match color {
+        Some(c)
+            if c.len() == 7
+                && c.starts_with('#')
+                && c[1..].chars().all(|ch| ch.is_ascii_hexdigit()) =>
+        {
+            c.to_lowercase()
+        }
+        _ => DEFAULT_COLOR.to_string(),
+    }
 }
 
 #[cfg(test)]
@@ -248,6 +301,7 @@ mod tests {
             .write(|c| {
                 sources::add(
                     c,
+                    1,
                     &NewSource {
                         name: "F".into(),
                         kind: "m3u_url".into(),
@@ -361,12 +415,12 @@ mod tests {
     #[test]
     fn profiles_create_switch_delete() {
         let db = temp_db();
-        let pid = db.write(|c| create_profile(c, "Crianças")).unwrap();
+        let pid = db.write(|c| create_profile(c, "Crianças", Some("#3aa0ff"))).unwrap();
         let profiles = db.read(move |c| list_profiles(c, pid)).unwrap();
         assert_eq!(profiles.len(), 2);
-        assert!(profiles.iter().any(|p| p.name == "Crianças" && p.active));
+        assert!(profiles.iter().any(|p| p.name == "Crianças" && p.active && p.color == "#3aa0ff"));
 
-        assert!(db.write(|c| create_profile(c, "Crianças")).is_err());
+        assert!(db.write(|c| create_profile(c, "Crianças", None)).is_err());
 
         db.write(move |c| delete_profile(c, pid)).unwrap();
         let profiles = db.read(|c| list_profiles(c, 1)).unwrap();

@@ -26,7 +26,18 @@ const logo = (seed) => `https://picsum.photos/seed/${seed}/320/200`;
 const HLS = "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8";
 const MP4 = (f) => `https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/${f}`;
 
-// Fresh start for the demo source.
+// Give the default profile a name + color, and add a second, empty profile
+// so the "Who's watching?" gate appears and isolation is visible.
+try {
+  db.exec("UPDATE profiles SET name = 'Sala', color = '#e8b65a' WHERE id = 1");
+  db.prepare(
+    "INSERT OR IGNORE INTO profiles (name, color, created_at) VALUES (?, ?, ?)",
+  ).run("Crianças", "#5a8fe0", now);
+} catch {
+  // older schema without color — ignore
+}
+
+// Fresh start for the demo source (bound to profile 1).
 db.exec("DELETE FROM sources WHERE name = 'Demo (amostra)'");
 const src = db
   .prepare(

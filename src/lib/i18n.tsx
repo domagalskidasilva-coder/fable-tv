@@ -12,7 +12,31 @@ const ptBR: Record<string, string> = {
   "nav.favorites": "Favoritos",
   "nav.history": "Histórico",
   "nav.sources": "Fontes",
+  "nav.profiles": "Perfis",
   "nav.settings": "Ajustes",
+
+  // profiles
+  "who.title": "Quem está assistindo?",
+  "who.manage": "Gerenciar perfis",
+  "who.add": "Adicionar perfil",
+  "profiles.title": "Perfis",
+  "profiles.subtitle":
+    "Cada perfil é uma biblioteca isolada, com suas próprias listas, favoritos e histórico.",
+  "profiles.new": "Novo perfil",
+  "profiles.edit": "Editar perfil",
+  "profiles.name": "Nome do perfil",
+  "profiles.color": "Cor",
+  "profiles.switchTo": "Entrar neste perfil",
+  "profiles.switch": "Trocar perfil",
+  "profiles.manage": "Gerenciar",
+  "profiles.active": "Em uso",
+  "profiles.deleteConfirm":
+    "Excluir este perfil, suas listas e tudo que foi sincronizado nele? Favoritos e histórico do perfil também serão apagados.",
+  "profiles.counts": "{c} canais · {m} filmes · {s} séries",
+  "profiles.empty": "Sem conteúdo ainda. Adicione uma lista e sincronize.",
+  "profiles.playlists": "Listas deste perfil",
+  "profiles.addPlaylist": "Adicionar lista",
+  "profiles.back": "Perfis",
 
   // common
   "common.loading": "Carregando…",
@@ -202,7 +226,31 @@ const en: Record<string, string> = {
   "nav.favorites": "Favorites",
   "nav.history": "History",
   "nav.sources": "Sources",
+  "nav.profiles": "Profiles",
   "nav.settings": "Settings",
+
+  // profiles
+  "who.title": "Who's watching?",
+  "who.manage": "Manage profiles",
+  "who.add": "Add profile",
+  "profiles.title": "Profiles",
+  "profiles.subtitle":
+    "Each profile is an isolated library with its own playlists, favorites and history.",
+  "profiles.new": "New profile",
+  "profiles.edit": "Edit profile",
+  "profiles.name": "Profile name",
+  "profiles.color": "Color",
+  "profiles.switchTo": "Enter this profile",
+  "profiles.switch": "Switch profile",
+  "profiles.manage": "Manage",
+  "profiles.active": "In use",
+  "profiles.deleteConfirm":
+    "Delete this profile, its playlists and everything synced into it? The profile's favorites and history will be removed too.",
+  "profiles.counts": "{c} channels · {m} movies · {s} series",
+  "profiles.empty": "No content yet. Add a playlist and sync.",
+  "profiles.playlists": "Playlists in this profile",
+  "profiles.addPlaylist": "Add playlist",
+  "profiles.back": "Profiles",
 
   "common.loading": "Loading…",
   "common.retry": "Retry",
