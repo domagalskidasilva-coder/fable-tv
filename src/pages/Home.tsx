@@ -1,15 +1,17 @@
-import { motion } from "framer-motion";
 import { useCallback, useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, type NavigateFunction } from "react-router-dom";
 import { ChannelCard, ContinueCard, PosterCard } from "../components/Cards";
+import { Hero } from "../components/Hero";
 import { Row, RowItem } from "../components/Row";
-import { Button, EmptyState, SkeletonRow } from "../components/ui";
+import { Button, SkeletonRow } from "../components/ui";
 import { getHomeData, startSync } from "../lib/api";
+import { EASE, gsap, useGsap } from "../lib/gsap";
 import { useI18n } from "../lib/i18n";
 import type { HomeData, MediaCard } from "../lib/types";
 import { formatDateTime } from "../lib/utils";
 
-export function openCard(navigate: (to: string) => void, card: MediaCard) {
+/** Opens the detail page (or player for live/episode). */
+export function openCard(navigate: NavigateFunction, card: MediaCard) {
   switch (card.itemType) {
     case "channel":
     case "episode":
@@ -24,6 +26,31 @@ export function openCard(navigate: (to: string) => void, card: MediaCard) {
   }
 }
 
+/** Starts playback directly where possible; series open detail to pick an episode. */
+export function playCard(navigate: NavigateFunction, card: MediaCard) {
+  switch (card.itemType) {
+    case "movie":
+    case "channel":
+    case "episode":
+      navigate(`/player/${card.itemType}/${card.id}`);
+      break;
+    case "series":
+      navigate(`/series/${card.seriesId ?? card.id}`);
+      break;
+  }
+}
+
+function pickFeatured(data: HomeData): MediaCard | null {
+  return (
+    data.continueWatching[0] ??
+    data.latestMovies[0] ??
+    data.latestSeries[0] ??
+    data.favorites[0] ??
+    data.recentChannels[0] ??
+    null
+  );
+}
+
 export default function Home() {
   const { t, lang } = useI18n();
   const navigate = useNavigate();
@@ -32,227 +59,190 @@ export default function Home() {
   const load = useCallback(() => {
     getHomeData().then(setData).catch(() => setData(null));
   }, []);
-
   useEffect(load, [load]);
+
+  const rowsRef = useGsap<HTMLDivElement>(
+    (self) => {
+      const reveals = self.querySelectorAll("[data-reveal]");
+      gsap.from(reveals, {
+        autoAlpha: 0,
+        y: 28,
+        duration: 0.5,
+        stagger: 0.07,
+        ease: EASE.out,
+      });
+    },
+    [data ? "ready" : "loading"],
+  );
+
+  const welcomeRef = useGsap<HTMLDivElement>((self) => {
+    gsap.from(self.children, { autoAlpha: 0, y: 24, stagger: 0.1, duration: 0.6, ease: EASE.out });
+  });
 
   const open = (c: MediaCard) => openCard(navigate, c);
 
   if (!data) {
     return (
-      <div className="h-full overflow-y-auto p-8">
-        <div className="skeleton mb-8 h-10 w-72 rounded-xl" />
-        <SkeletonRow />
-        <div className="h-8" />
-        <SkeletonRow poster />
+      <div className="h-full overflow-y-auto">
+        <div className="skeleton h-[64vh] min-h-[420px] w-full" />
+        <div className="space-y-8 p-6">
+          <SkeletonRow poster />
+          <SkeletonRow />
+        </div>
       </div>
     );
   }
 
-  const isEmpty =
-    data.sources.length === 0 &&
-    data.continueWatching.length === 0 &&
-    data.recentChannels.length === 0;
+  const featured = pickFeatured(data);
+  const isEmpty = data.sources.length === 0 && !featured;
 
   if (isEmpty) {
     return (
       <div className="flex h-full items-center justify-center p-8">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="max-w-xl text-center"
-        >
-          <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-3xl bg-gradient-to-br from-accent to-accent-strong text-4xl font-black text-white shadow-2xl">
+        <div ref={welcomeRef} className="max-w-xl text-center">
+          <div className="mx-auto mb-6 grid h-24 w-24 place-items-center rounded-3xl bg-brand text-5xl font-black text-white shadow-2xl glow-accent">
             F
           </div>
-          <h1 className="mb-3 text-3xl font-extrabold tracking-tight text-ink">
-            {t("home.welcome")}
-          </h1>
+          <h1 className="mb-3 text-4xl font-black tracking-tight text-ink">{t("home.welcome")}</h1>
           <p className="mb-8 text-ink-dim">{t("home.welcomeSub")}</p>
-          <Button onClick={() => navigate("/sources")} className="px-6 py-3 text-base" autoFocus>
+          <Button onClick={() => navigate("/sources")} className="px-7 py-3.5 text-base" autoFocus>
             {t("home.addFirstSource")}
           </Button>
-        </motion.div>
+        </div>
       </div>
     );
   }
 
-  return (
-    <div className="h-full overflow-y-auto px-8 pb-12 pt-8">
-      <motion.h1
-        initial={{ opacity: 0, y: -8 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="mb-8 text-2xl font-extrabold tracking-tight text-ink"
-      >
-        Fable TV
-      </motion.h1>
+  const seeAll = (to: string) => (
+    <button
+      data-nav
+      onClick={() => navigate(to)}
+      className="text-xs font-semibold text-ink-dim transition-colors hover:text-accent-strong"
+    >
+      {t("common.seeAll")} ›
+    </button>
+  );
 
-      {data.continueWatching.length > 0 && (
-        <Row title={t("home.continueWatching")}>
-          {data.continueWatching.map((c) => (
-            <ContinueCard key={`${c.itemType}-${c.id}`} card={c} onOpen={open} />
-          ))}
-        </Row>
+  return (
+    <div className="h-full overflow-y-auto">
+      {featured && (
+        <Hero
+          card={featured}
+          onPlay={(c) => playCard(navigate, c)}
+          onInfo={(c) => openCard(navigate, c)}
+        />
       )}
 
-      {data.favorites.length > 0 && (
-        <Row
-          title={t("home.favorites")}
-          action={
-            <button
-              data-nav
-              onClick={() => navigate("/favorites")}
-              className="text-xs font-semibold text-accent-strong hover:underline"
-            >
-              {t("common.seeAll")}
-            </button>
-          }
-        >
-          {data.favorites.map((c) =>
-            c.itemType === "channel" ? (
-              <RowItem key={`${c.itemType}-${c.id}`} width="w-56">
+      <div ref={rowsRef} className="relative z-10 -mt-12 px-6 pb-16 md:px-10">
+        {data.continueWatching.length > 0 && (
+          <Row title={t("home.continueWatching")}>
+            {data.continueWatching.map((c) => (
+              <ContinueCard key={`${c.itemType}-${c.id}`} card={c} onOpen={open} />
+            ))}
+          </Row>
+        )}
+
+        {data.favorites.length > 0 && (
+          <Row title={t("home.favorites")} action={seeAll("/favorites")}>
+            {data.favorites.map((c) =>
+              c.itemType === "channel" ? (
+                <RowItem key={`${c.itemType}-${c.id}`} width="w-56">
+                  <ChannelCard card={c} onOpen={open} />
+                </RowItem>
+              ) : (
+                <RowItem key={`${c.itemType}-${c.id}`}>
+                  <PosterCard card={c} onOpen={open} />
+                </RowItem>
+              ),
+            )}
+          </Row>
+        )}
+
+        {data.recentChannels.length > 0 && (
+          <Row title={t("home.recentChannels")} action={seeAll("/live")}>
+            {data.recentChannels.map((c) => (
+              <RowItem key={c.id} width="w-56">
                 <ChannelCard card={c} onOpen={open} />
               </RowItem>
-            ) : (
-              <RowItem key={`${c.itemType}-${c.id}`}>
+            ))}
+          </Row>
+        )}
+
+        {data.latestMovies.length > 0 && (
+          <Row title={t("home.latestMovies")} action={seeAll("/movies")}>
+            {data.latestMovies.map((c) => (
+              <RowItem key={c.id}>
                 <PosterCard card={c} onOpen={open} />
               </RowItem>
-            ),
-          )}
-        </Row>
-      )}
-
-      {data.recentChannels.length > 0 && (
-        <Row
-          title={t("home.recentChannels")}
-          action={
-            <button
-              data-nav
-              onClick={() => navigate("/live")}
-              className="text-xs font-semibold text-accent-strong hover:underline"
-            >
-              {t("common.seeAll")}
-            </button>
-          }
-        >
-          {data.recentChannels.map((c) => (
-            <RowItem key={c.id} width="w-56">
-              <ChannelCard card={c} onOpen={open} />
-            </RowItem>
-          ))}
-        </Row>
-      )}
-
-      {data.latestMovies.length > 0 && (
-        <Row
-          title={t("home.latestMovies")}
-          action={
-            <button
-              data-nav
-              onClick={() => navigate("/movies")}
-              className="text-xs font-semibold text-accent-strong hover:underline"
-            >
-              {t("common.seeAll")}
-            </button>
-          }
-        >
-          {data.latestMovies.map((c) => (
-            <RowItem key={c.id}>
-              <PosterCard card={c} onOpen={open} />
-            </RowItem>
-          ))}
-        </Row>
-      )}
-
-      {data.latestSeries.length > 0 && (
-        <Row
-          title={t("home.latestSeries")}
-          action={
-            <button
-              data-nav
-              onClick={() => navigate("/series")}
-              className="text-xs font-semibold text-accent-strong hover:underline"
-            >
-              {t("common.seeAll")}
-            </button>
-          }
-        >
-          {data.latestSeries.map((c) => (
-            <RowItem key={c.id}>
-              <PosterCard card={c} onOpen={open} />
-            </RowItem>
-          ))}
-        </Row>
-      )}
-
-      {data.liveCategories.length > 0 && (
-        <Row title={t("home.categories")}>
-          {data.liveCategories.map((cat) => (
-            <motion.button
-              key={cat.id}
-              data-nav
-              whileHover={{ scale: 1.04 }}
-              whileTap={{ scale: 0.97 }}
-              onClick={() => navigate(`/live?category=${cat.id}`)}
-              className="flex h-24 w-44 shrink-0 flex-col justify-between rounded-xl border border-line bg-gradient-to-br from-surface to-surface-hover p-4 text-left shadow-md"
-            >
-              <span className="line-clamp-2 text-sm font-bold text-ink">{cat.name}</span>
-              <span className="text-xs text-ink-dim">
-                {t("common.items", { n: cat.itemCount })}
-              </span>
-            </motion.button>
-          ))}
-        </Row>
-      )}
-
-      {data.sources.length > 0 && (
-        <Row title={t("home.sources")}>
-          {data.sources.map((s) => (
-            <div
-              key={s.id}
-              className="w-72 shrink-0 rounded-xl border border-line bg-surface p-4 shadow-md"
-            >
-              <div className="mb-2 flex items-center justify-between">
-                <p className="truncate font-bold text-ink">{s.name}</p>
-                <button
-                  data-nav
-                  onClick={() =>
-                    startSync(s.id, {
-                      channels: true,
-                      movies: true,
-                      series: true,
-                      epg: false,
-                      logos: false,
-                    }).catch(() => undefined)
-                  }
-                  className="rounded-lg bg-accent-soft px-2 py-1 text-xs font-semibold text-accent-strong hover:bg-accent hover:text-white"
-                >
-                  {t("home.syncNow")}
-                </button>
-              </div>
-              <p className="text-xs text-ink-dim">
-                {t("home.channels", { n: s.channelCount })} ·{" "}
-                {t("home.movies", { n: s.movieCount })} · {t("home.series", { n: s.seriesCount })}
-              </p>
-              <p className="mt-1 text-xs text-ink-dim/70">
-                {t("home.lastSync", {
-                  when: s.lastSyncAt ? formatDateTime(s.lastSyncAt, lang) : t("common.never"),
-                })}
-              </p>
-            </div>
-          ))}
-        </Row>
-      )}
-
-      {data.continueWatching.length === 0 &&
-        data.recentChannels.length === 0 &&
-        data.latestMovies.length === 0 &&
-        data.latestSeries.length === 0 && (
-          <EmptyState
-            title={t("common.loading")}
-            subtitle={t("home.welcomeSub")}
-            action={<Button onClick={() => navigate("/sources")}>{t("nav.sources")}</Button>}
-          />
+            ))}
+          </Row>
         )}
+
+        {data.latestSeries.length > 0 && (
+          <Row title={t("home.latestSeries")} action={seeAll("/series")}>
+            {data.latestSeries.map((c) => (
+              <RowItem key={c.id}>
+                <PosterCard card={c} onOpen={open} />
+              </RowItem>
+            ))}
+          </Row>
+        )}
+
+        {data.liveCategories.length > 0 && (
+          <Row title={t("home.categories")}>
+            {data.liveCategories.map((cat) => (
+              <button
+                key={cat.id}
+                data-nav
+                onClick={() => navigate(`/live?category=${cat.id}`)}
+                className="flex h-24 w-48 shrink-0 flex-col justify-between overflow-hidden rounded-2xl border border-line bg-gradient-to-br from-surface-2 to-surface p-4 text-left shadow-md transition-transform hover:scale-[1.03] hover:border-accent/50"
+              >
+                <span className="line-clamp-2 text-sm font-bold text-ink">{cat.name}</span>
+                <span className="text-xs text-ink-dim">{t("common.items", { n: cat.itemCount })}</span>
+              </button>
+            ))}
+          </Row>
+        )}
+
+        {data.sources.length > 0 && (
+          <Row title={t("home.sources")} action={seeAll("/sources")}>
+            {data.sources.map((s) => (
+              <div
+                key={s.id}
+                className="w-72 shrink-0 rounded-2xl border border-line bg-surface/80 p-4 shadow-md backdrop-blur"
+              >
+                <div className="mb-2 flex items-center justify-between gap-2">
+                  <p className="truncate font-bold text-ink">{s.name}</p>
+                  <button
+                    data-nav
+                    onClick={() =>
+                      startSync(s.id, {
+                        channels: true,
+                        movies: true,
+                        series: true,
+                        epg: false,
+                        logos: false,
+                      }).catch(() => undefined)
+                    }
+                    className="shrink-0 rounded-lg bg-accent-soft px-2.5 py-1 text-xs font-semibold text-accent-strong transition-colors hover:bg-accent hover:text-white"
+                  >
+                    {t("home.syncNow")}
+                  </button>
+                </div>
+                <p className="text-xs text-ink-dim">
+                  {t("home.channels", { n: s.channelCount })} · {t("home.movies", { n: s.movieCount })} ·{" "}
+                  {t("home.series", { n: s.seriesCount })}
+                </p>
+                <p className="mt-1 text-xs text-ink-faint">
+                  {t("home.lastSync", {
+                    when: s.lastSyncAt ? formatDateTime(s.lastSyncAt, lang) : t("common.never"),
+                  })}
+                </p>
+              </div>
+            ))}
+          </Row>
+        )}
+      </div>
     </div>
   );
 }

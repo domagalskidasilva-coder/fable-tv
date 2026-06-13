@@ -28,7 +28,7 @@ function Shell({ onSettingsChanged }: { onSettingsChanged: () => void }) {
   }
 
   return (
-    <Layout>
+    <Layout onSettingsChanged={onSettingsChanged}>
       <Routes location={location}>
         <Route path="/" element={<Home />} />
         <Route path="/live" element={<LiveTV />} />

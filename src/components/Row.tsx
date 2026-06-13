@@ -1,7 +1,8 @@
-import { motion } from "framer-motion";
-import type { ReactNode } from "react";
+import { useRef, type ReactNode } from "react";
+import { scrollRowBy } from "../lib/gsap";
+import { Chevron } from "./ui";
 
-/** Horizontal scrolling section with a title, used across the home screen. */
+/** Horizontal scrolling section with a title and hover chevron controls. */
 export function Row({
   title,
   children,
@@ -11,24 +12,52 @@ export function Row({
   children: ReactNode;
   action?: ReactNode;
 }) {
+  const scroller = useRef<HTMLDivElement>(null);
+
+  const scroll = (dir: 1 | -1) => {
+    if (scroller.current) scrollRowBy(scroller.current, dir);
+  };
+
   return (
-    <motion.section
-      initial={{ opacity: 0, y: 18 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.35 }}
-      className="mb-8"
-    >
+    <section data-reveal className="group/row mb-9">
       <div className="mb-3 flex items-center justify-between px-1">
-        <h2 className="text-base font-bold tracking-tight text-ink">{title}</h2>
+        <h2 className="text-lg font-bold tracking-tight text-ink">{title}</h2>
         {action}
       </div>
-      <div className="hide-scrollbar flex gap-4 overflow-x-auto pb-2 pl-1 pr-6 [scroll-padding:1rem]">
-        {children}
+      <div className="relative">
+        <button
+          tabIndex={-1}
+          aria-label="scroll left"
+          onClick={() => scroll(-1)}
+          className="absolute -left-2 top-0 bottom-2 z-20 hidden w-12 place-items-center rounded-2xl bg-gradient-to-r from-bg/90 to-transparent text-ink opacity-0 transition-opacity duration-200 group-hover/row:opacity-100 md:grid"
+        >
+          <span className="grid h-10 w-10 place-items-center rounded-full bg-black/60 backdrop-blur transition-transform hover:scale-110">
+            <Chevron dir="left" />
+          </span>
+        </button>
+
+        <div
+          ref={scroller}
+          className="hide-scrollbar row-mask flex gap-4 overflow-x-auto scroll-smooth pb-2 pl-1 pr-6"
+        >
+          {children}
+        </div>
+
+        <button
+          tabIndex={-1}
+          aria-label="scroll right"
+          onClick={() => scroll(1)}
+          className="absolute -right-2 top-0 bottom-2 z-20 hidden w-12 place-items-center rounded-2xl bg-gradient-to-l from-bg/90 to-transparent text-ink opacity-0 transition-opacity duration-200 group-hover/row:opacity-100 md:grid"
+        >
+          <span className="grid h-10 w-10 place-items-center rounded-full bg-black/60 backdrop-blur transition-transform hover:scale-110">
+            <Chevron dir="right" />
+          </span>
+        </button>
       </div>
-    </motion.section>
+    </section>
   );
 }
 
-export function RowItem({ children, width = "w-36" }: { children: ReactNode; width?: string }) {
+export function RowItem({ children, width = "w-40" }: { children: ReactNode; width?: string }) {
   return <div className={`${width} shrink-0`}>{children}</div>;
 }

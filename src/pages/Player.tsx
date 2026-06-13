@@ -1,9 +1,9 @@
 import Hls from "hls.js";
-import { AnimatePresence, motion } from "framer-motion";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Button, HeartIcon, Spinner } from "../components/ui";
 import { getSettings, reportPlayback, resolveStream, setSetting, toggleFavorite } from "../lib/api";
+import { EASE, gsap } from "../lib/gsap";
 import { useI18n } from "../lib/i18n";
 import type { ItemType, StreamInfo } from "../lib/types";
 import { cx, formatClock, imageSrc } from "../lib/utils";
@@ -20,6 +20,7 @@ export default function Player() {
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const hlsRef = useRef<Hls | null>(null);
+  const controlsRef = useRef<HTMLDivElement>(null);
   const hideTimer = useRef<ReturnType<typeof setTimeout>>();
   const startedAt = useRef<number>(0);
   const reported = useRef(false);
@@ -51,6 +52,14 @@ export default function Player() {
     document.body.setAttribute("data-modal-open", "true");
     return () => document.body.removeAttribute("data-modal-open");
   }, []);
+
+  // Fade the control overlay in/out (autoAlpha also blocks pointer events
+  // when hidden, so taps fall through to the video).
+  useEffect(() => {
+    const el = controlsRef.current;
+    if (!el) return;
+    gsap.to(el, { autoAlpha: controls ? 1 : 0, duration: 0.25, ease: EASE.soft });
+  }, [controls, status]);
 
   const sendHistory = useCallback(
     (final = false) => {
@@ -289,62 +298,46 @@ export default function Player() {
       />
 
       {/* Loading overlay */}
-      <AnimatePresence>
-        {status === "loading" && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-black/70"
-          >
-            <Spinner className="h-12 w-12" />
-            <p className="text-sm font-medium text-white/80">{t("player.loading")}</p>
-            {stream && <p className="text-lg font-bold text-white">{stream.name}</p>}
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {status === "loading" && (
+        <div className="absolute inset-0 flex animate-[fadeIn_.3s_ease] flex-col items-center justify-center gap-4 bg-black/70">
+          <Spinner className="h-12 w-12" />
+          <p className="text-sm font-medium text-white/80">{t("player.loading")}</p>
+          {stream && <p className="text-lg font-bold text-white">{stream.name}</p>}
+        </div>
+      )}
 
       {/* Error overlay */}
-      <AnimatePresence>
-        {status === "error" && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.97 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0 }}
-            className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-black/85 p-8 text-center"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="text-5xl">⚠️</div>
-            <h2 className="text-xl font-bold text-white">{t("player.error")}</h2>
-            <p className="max-w-md text-sm text-white/60">{t("player.errorHint")}</p>
-            {errorDetail && (
-              <p className="max-w-md break-all rounded bg-white/10 px-3 py-1 text-xs text-white/50">
-                {errorDetail}
-              </p>
-            )}
-            <div className="mt-2 flex gap-3">
-              <Button variant="ghost" onClick={goBack}>
-                {t("common.back")}
-              </Button>
-              <Button onClick={() => setAttempt((a) => a + 1)} autoFocus>
-                {t("common.retry")}
-              </Button>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {status === "error" && (
+        <div
+          className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-black/85 p-8 text-center"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="text-5xl">⚠️</div>
+          <h2 className="text-xl font-bold text-white">{t("player.error")}</h2>
+          <p className="max-w-md text-sm text-white/60">{t("player.errorHint")}</p>
+          {errorDetail && (
+            <p className="max-w-md break-all rounded bg-white/10 px-3 py-1 text-xs text-white/50">
+              {errorDetail}
+            </p>
+          )}
+          <div className="mt-2 flex gap-3">
+            <Button variant="ghost" onClick={goBack}>
+              {t("common.back")}
+            </Button>
+            <Button onClick={() => setAttempt((a) => a + 1)} autoFocus>
+              {t("common.retry")}
+            </Button>
+          </div>
+        </div>
+      )}
 
-      {/* Controls overlay */}
-      <AnimatePresence>
-        {controls && status !== "error" && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            className="absolute inset-0 flex flex-col justify-between bg-gradient-to-b from-black/70 via-transparent to-black/80"
-            onClick={(e) => e.stopPropagation()}
-          >
+      {/* Controls overlay (GSAP-faded via controlsRef) */}
+      {status !== "error" && (
+        <div
+          ref={controlsRef}
+          className="absolute inset-0 flex flex-col justify-between bg-gradient-to-b from-black/70 via-transparent to-black/80"
+          onClick={(e) => e.stopPropagation()}
+        >
             {/* Top bar */}
             <div className="flex items-center gap-4 p-5">
               <button
@@ -509,9 +502,8 @@ export default function Player() {
                 </button>
               </div>
             </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,4 +1,3 @@
-import { motion } from "framer-motion";
 import { useCallback, useEffect, useState } from "react";
 import { SourceModal } from "../components/SourceModal";
 import { Button, Confirm, EmptyState, Spinner } from "../components/ui";
@@ -124,11 +123,9 @@ export default function Sources() {
                   ? Math.min(100, Math.round((job.processed / job.total) * 100))
                   : null;
               return (
-                <motion.div
+                <div
                   key={s.id}
-                  layout
-                  initial={{ opacity: 0, y: 12 }}
-                  animate={{ opacity: 1, y: 0 }}
+                  data-reveal
                   className="rounded-2xl border border-line bg-surface p-5 shadow-md"
                 >
                   <div className="mb-1 flex items-start justify-between gap-3">
@@ -246,7 +243,7 @@ export default function Sources() {
                       </Button>
                     </div>
                   )}
-                </motion.div>
+                </div>
               );
             })}
           </div>

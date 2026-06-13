@@ -2,56 +2,91 @@
 
 :root,
 [data-theme="dark"] {
-  --bg: #0a0d14;
-  --bg-elevated: #11141d;
-  --surface: #161a26;
-  --surface-hover: #1d2333;
-  --border: #232a3d;
-  --text: #eef0f6;
-  --text-dim: #98a0b3;
-  --accent: #7c5cff;
-  --accent-strong: #9d7dff;
-  --accent-soft: rgba(124, 92, 255, 0.16);
-  --danger: #ff5c7a;
-  --ok: #3ecf8e;
+  --bg: #070a12;
+  --bg-2: #0c1020;
+  --bg-elevated: #10141f;
+  --surface: #161b29;
+  --surface-2: #1b2233;
+  --surface-hover: #232c42;
+  --border: #28304a;
+  --border-soft: #1d2436;
+  --text: #f3f5fb;
+  --text-dim: #9aa3bd;
+  --text-faint: #69728c;
+  --accent: #8b5cf6;
+  --accent-2: #6366f1;
+  --accent-strong: #a78bfa;
+  --accent-soft: rgba(139, 92, 246, 0.16);
+  --accent-glow: rgba(124, 92, 255, 0.45);
+  --danger: #ff5d7a;
+  --ok: #34d399;
+  --gold: #f5c451;
 }
 
 [data-theme="light"] {
-  --bg: #f4f5f9;
+  --bg: #eef1f7;
+  --bg-2: #e6eaf3;
   --bg-elevated: #ffffff;
   --surface: #ffffff;
-  --surface-hover: #eef0f6;
-  --border: #dfe3ee;
-  --text: #161a26;
-  --text-dim: #5d6578;
-  --accent: #6442e8;
-  --accent-strong: #4f2fd0;
-  --accent-soft: rgba(100, 66, 232, 0.12);
-  --danger: #d92b4b;
-  --ok: #14945e;
+  --surface-2: #f5f7fc;
+  --surface-hover: #e9edf6;
+  --border: #d8def0;
+  --border-soft: #e4e9f5;
+  --text: #131726;
+  --text-dim: #545d76;
+  --text-faint: #818aa3;
+  --accent: #6d44e0;
+  --accent-2: #4f46e5;
+  --accent-strong: #5a32c9;
+  --accent-soft: rgba(109, 68, 224, 0.12);
+  --accent-glow: rgba(109, 68, 224, 0.3);
+  --danger: #db2a4c;
+  --ok: #0f9d63;
+  --gold: #c8901a;
 }
 
 @theme {
   --color-bg: var(--bg);
+  --color-bg-2: var(--bg-2);
   --color-bg-elevated: var(--bg-elevated);
   --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
   --color-surface-hover: var(--surface-hover);
   --color-line: var(--border);
+  --color-line-soft: var(--border-soft);
   --color-ink: var(--text);
   --color-ink-dim: var(--text-dim);
+  --color-ink-faint: var(--text-faint);
   --color-accent: var(--accent);
+  --color-accent-2: var(--accent-2);
   --color-accent-strong: var(--accent-strong);
   --color-accent-soft: var(--accent-soft);
   --color-danger: var(--danger);
   --color-ok: var(--ok);
+  --color-gold: var(--gold);
+}
+
+html,
+body,
+#root {
+  height: 100%;
 }
 
 html,
 body {
-  background: var(--bg);
+  margin: 0;
   color: var(--text);
-  font-family: "Segoe UI", system-ui, -apple-system, "Inter", sans-serif;
+  font-family: "Segoe UI", system-ui, -apple-system, "Inter", "Helvetica Neue", sans-serif;
   overscroll-behavior: none;
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  background:
+    radial-gradient(1200px 600px at 80% -10%, rgba(124, 92, 255, 0.14), transparent 60%),
+    radial-gradient(900px 500px at 0% 0%, rgba(99, 102, 241, 0.1), transparent 55%),
+    linear-gradient(180deg, var(--bg-2) 0%, var(--bg) 38%);
+  background-attachment: fixed;
 }
 
 * {
@@ -59,27 +94,29 @@ body {
   scrollbar-color: var(--border) transparent;
 }
 *::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 9px;
+  height: 9px;
 }
 *::-webkit-scrollbar-thumb {
   background: var(--border);
-  border-radius: 8px;
+  border-radius: 9px;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--surface-hover);
 }
 *::-webkit-scrollbar-track {
   background: transparent;
 }
 
-/* Strong, visible focus for keyboard / remote navigation */
 :focus {
   outline: none;
 }
 :focus-visible,
-[data-nav]:focus {
+[data-nav]:focus-visible {
   outline: 3px solid var(--accent-strong);
-  outline-offset: 2px;
-  border-radius: 12px;
-  z-index: 5;
+  outline-offset: 3px;
+  border-radius: 14px;
+  z-index: 30;
 }
 
 .hide-scrollbar::-webkit-scrollbar {
@@ -90,15 +127,42 @@ body {
 }
 
 .text-shadow {
-  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.7);
+  text-shadow: 0 2px 20px rgba(0, 0, 0, 0.85);
+}
+.text-shadow-sm {
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.6);
 }
 
+/* Brand gradients */
+.bg-brand {
+  background: linear-gradient(135deg, var(--accent) 0%, var(--accent-2) 100%);
+}
+.text-brand {
+  background: linear-gradient(120deg, var(--accent-strong), var(--accent-2));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.glow-accent {
+  box-shadow: 0 10px 40px -10px var(--accent-glow);
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Loading shimmer */
 @keyframes shimmer {
   0% {
-    background-position: -400px 0;
+    background-position: -480px 0;
   }
   100% {
-    background-position: 400px 0;
+    background-position: 480px 0;
   }
 }
 .skeleton {
@@ -108,10 +172,33 @@ body {
     var(--surface-hover) 50%,
     var(--surface) 75%
   );
-  background-size: 800px 100%;
-  animation: shimmer 1.4s infinite linear;
+  background-size: 960px 100%;
+  animation: shimmer 1.5s infinite linear;
+}
+
+/* Edge fades for horizontal carousels */
+.row-mask {
+  -webkit-mask-image: linear-gradient(
+    to right,
+    transparent 0,
+    #000 18px,
+    #000 calc(100% - 40px),
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    to right,
+    transparent 0,
+    #000 18px,
+    #000 calc(100% - 40px),
+    transparent 100%
+  );
 }
 
 input[type="range"] {
   accent-color: var(--accent);
+}
+
+/* gsap sets visibility via autoAlpha; avoid a flash before JS runs */
+[data-reveal] {
+  will-change: transform, opacity;
 }

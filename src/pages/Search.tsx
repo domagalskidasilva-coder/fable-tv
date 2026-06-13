@@ -1,4 +1,3 @@
-import { motion } from "framer-motion";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ChannelCard, PosterCard } from "../components/Cards";
@@ -53,16 +52,22 @@ export default function Search() {
 
   return (
     <div className="flex h-full flex-col p-6">
-      <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}>
+      <div className="relative mx-auto w-full max-w-2xl">
+        <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-ink-faint">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <circle cx="11" cy="11" r="7" />
+            <path d="m21 21-4.3-4.3" />
+          </svg>
+        </span>
         <input
           ref={inputRef}
           data-nav
-          className={cx(inputClass, "mx-auto block max-w-2xl px-5 py-3 text-base")}
+          className={cx(inputClass, "block w-full py-3.5 pl-12 pr-5 text-base")}
           placeholder={t("search.placeholder")}
           value={text}
           onChange={(e) => onChange(e.target.value)}
         />
-      </motion.div>
+      </div>
 
       <div className="mt-6 flex-1 overflow-y-auto">
         {loading && (
