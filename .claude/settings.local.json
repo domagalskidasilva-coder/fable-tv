@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(node --version)",
+      "PowerShell(npm --version)",
+      "PowerShell(rustc --version)",
+      "PowerShell(cargo --version)",
+      "PowerShell(cd D:\\\\fable-tv\\\\src-tauri; cargo check 2>&1 | Out-File -Encoding utf8 D:\\\\fable-tv\\\\cargo-check.log; Write-Output \"exit=$LASTEXITCODE\")",
+      "Bash(tasklist //FI \"IMAGENAME eq fable-tv.exe\")",
+      "Bash(git init *)",
+      "Bash(git config *)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)"
+    ]
+  }
+}
