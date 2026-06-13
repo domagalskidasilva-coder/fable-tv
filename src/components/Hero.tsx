@@ -103,7 +103,7 @@ export function Hero({
               )}
             >
               <InfoIcon />
-              {t("common.seeAll")}
+              {t("common.moreInfo")}
             </button>
           </div>
         </div>

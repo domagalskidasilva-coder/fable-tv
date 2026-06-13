@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ChannelCard, PosterCard } from "../components/Cards";
+import { Chip, PageHeader } from "../components/Chrome";
 import { EmptyState, Spinner } from "../components/ui";
 import { listFavorites } from "../lib/api";
 import { useI18n } from "../lib/i18n";
 import type { ItemType, MediaCard } from "../lib/types";
-import { cx } from "../lib/utils";
 import { openCard } from "./Home";
 
 const TABS: Array<{ key: ItemType | "all"; label: string }> = [
@@ -30,21 +30,13 @@ export default function Favorites() {
   }, [tab]);
 
   return (
-    <div className="flex h-full flex-col p-6">
-      <h1 className="mb-4 text-xl font-extrabold text-ink">{t("favorites.title")}</h1>
-      <div className="mb-5 flex gap-2">
+    <div className="flex h-full flex-col px-6 pt-6 md:px-10">
+      <PageHeader title={t("favorites.title")} icon={<HeartIconLg />} />
+      <div className="mb-5 flex flex-wrap gap-2">
         {TABS.map(({ key, label }) => (
-          <button
-            key={key}
-            data-nav
-            onClick={() => setTab(key)}
-            className={cx(
-              "rounded-full px-4 py-1.5 text-xs font-semibold transition-colors",
-              tab === key ? "bg-accent text-white" : "bg-surface text-ink-dim hover:bg-surface-hover",
-            )}
-          >
+          <Chip key={key} active={tab === key} onClick={() => setTab(key)}>
             {t(label)}
-          </button>
+          </Chip>
         ))}
       </div>
 
@@ -74,5 +66,13 @@ export default function Favorites() {
         )}
       </div>
     </div>
+  );
+}
+
+function HeartIconLg() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round">
+      <path d="M12 21s-7.5-4.7-10-9.2C.6 8.4 2.3 4.5 6 4.1c2.1-.2 4 .9 6 3 2-2.1 3.9-3.2 6-3 3.7.4 5.4 4.3 4 7.7-2.5 4.5-10 9.2-10 9.2z" />
+    </svg>
   );
 }

@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { PosterCard } from "../components/Cards";
+import { Chip, PageHeader, SearchField } from "../components/Chrome";
 import { VirtualGrid } from "../components/VirtualGrid";
-import { EmptyState, inputClass, Spinner } from "../components/ui";
+import { EmptyState, SkeletonGrid } from "../components/ui";
 import { listCategories, listMovies, listSeries } from "../lib/api";
 import { useI18n } from "../lib/i18n";
 import type { Category, MediaCard, Paged } from "../lib/types";
-import { cx, debounce } from "../lib/utils";
+import { debounce } from "../lib/utils";
 
 const PAGE = 60;
 
@@ -70,57 +71,39 @@ export default function CatalogPage({ kind }: { kind: "movie" | "series" }) {
     navigate(kind === "movie" ? `/movie/${card.id}` : `/series/${card.id}`);
 
   return (
-    <div className="flex h-full flex-col p-5">
-      <div className="mb-4 flex flex-wrap items-center gap-3">
-        <h1 className="mr-2 text-xl font-extrabold text-ink">{title}</h1>
-        <input
-          data-nav
-          className={cx(inputClass, "max-w-sm flex-1")}
-          placeholder={placeholder}
+    <div className="flex h-full flex-col px-6 pt-6 md:px-10">
+      <PageHeader title={title} count={total}>
+        <SearchField
           value={search}
-          onChange={(e) => {
-            setSearch(e.target.value);
-            applySearch(e.target.value);
+          onChange={(v) => {
+            setSearch(v);
+            applySearch(v);
           }}
+          placeholder={placeholder}
+          className="w-56 md:w-72"
         />
-        <span className="text-sm text-ink-dim">{t("common.items", { n: total })}</span>
-      </div>
+      </PageHeader>
 
       {categories.length > 0 && (
-        <div className="hide-scrollbar mb-4 flex gap-2 overflow-x-auto pb-1">
-          <button
-            data-nav
-            onClick={() => setParams({})}
-            className={cx(
-              "shrink-0 rounded-full px-4 py-1.5 text-xs font-semibold transition-colors",
-              categoryId === null
-                ? "bg-accent text-white"
-                : "bg-surface text-ink-dim hover:bg-surface-hover",
-            )}
-          >
+        <div className="hide-scrollbar -mx-1 mb-5 flex gap-2 overflow-x-auto px-1 pb-1">
+          <Chip active={categoryId === null} onClick={() => setParams({})}>
             {t("common.all")}
-          </button>
+          </Chip>
           {categories.map((c) => (
-            <button
+            <Chip
               key={c.id}
-              data-nav
+              active={categoryId === c.id}
               onClick={() => setParams({ category: String(c.id) })}
-              className={cx(
-                "shrink-0 rounded-full px-4 py-1.5 text-xs font-semibold transition-colors",
-                categoryId === c.id
-                  ? "bg-accent text-white"
-                  : "bg-surface text-ink-dim hover:bg-surface-hover",
-              )}
             >
               {c.name} · {c.itemCount}
-            </button>
+            </Chip>
           ))}
         </div>
       )}
 
       {loading ? (
-        <div className="flex flex-1 items-center justify-center">
-          <Spinner />
+        <div className="min-h-0 flex-1 overflow-hidden">
+          <SkeletonGrid poster />
         </div>
       ) : items.length === 0 ? (
         <EmptyState title={emptyText} icon={kind === "movie" ? "🎬" : "🎞️"} />
@@ -128,7 +111,7 @@ export default function CatalogPage({ kind }: { kind: "movie" | "series" }) {
         <div className="min-h-0 flex-1">
           <VirtualGrid
             items={items}
-            minItemWidth={150}
+            minItemWidth={158}
             rowHeight={(w) => (w * 3) / 2 + 56}
             hasMore={items.length < total}
             onEndReached={onEndReached}

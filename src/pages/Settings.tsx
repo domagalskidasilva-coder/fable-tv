@@ -96,9 +96,11 @@ export default function Settings({
   };
 
   return (
-    <div className="h-full overflow-y-auto p-6">
-      <div className="mx-auto max-w-2xl pb-12">
-        <h1 className="mb-6 text-xl font-extrabold text-ink">{t("settings.title")}</h1>
+    <div className="h-full overflow-y-auto px-6 pt-6 md:px-10">
+      <div className="mx-auto max-w-2xl pb-16">
+        <h1 className="mb-6 text-3xl font-black tracking-tight text-ink md:text-4xl">
+          {t("settings.title")}
+        </h1>
 
         {notice && (
           <button

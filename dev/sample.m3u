@@ -1,0 +1,61 @@
+#EXTM3U
+#EXTINF:-1 tvg-id="globo.demo" tvg-name="Canal Aberto HD" tvg-logo="https://picsum.photos/seed/chan1/320/200" group-title="Canais | Abertos",Aurora TV HD
+https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8
+#EXTINF:-1 tvg-id="news.demo" tvg-name="Notícias 24h" tvg-logo="https://picsum.photos/seed/chan2/320/200" group-title="Canais | Notícias",Nimbus News 24h
+https://test-streams.mux.dev/test_001/stream.m3u8
+#EXTINF:-1 tvg-logo="https://picsum.photos/seed/chan3/320/200" group-title="Canais | Esportes",Vertex Sports HD
+https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8
+#EXTINF:-1 tvg-logo="https://picsum.photos/seed/chan4/320/200" group-title="Canais | Esportes",Vertex Sports 2
+https://test-streams.mux.dev/test_001/stream.m3u8
+#EXTINF:-1 tvg-logo="https://picsum.photos/seed/chan5/320/200" group-title="Canais | Filmes",Cine Lumen
+https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8
+#EXTINF:-1 tvg-logo="https://picsum.photos/seed/chan6/320/200" group-title="Canais | Abertos",Praça Pública TV
+https://test-streams.mux.dev/test_001/stream.m3u8
+#EXTINF:-1 tvg-logo="https://picsum.photos/seed/chan7/320/200" group-title="Canais | Notícias",Boletim Global
+https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8
+#EXTINF:-1 tvg-logo="https://picsum.photos/seed/chan8/320/200" group-title="Canais | Infantil",Pequenos Mundos
+https://test-streams.mux.dev/test_001/stream.m3u8
+#EXTINF:-1 tvg-logo="https://picsum.photos/seed/mv01/400/600" group-title="Filmes | Animação",O Grande Coelho (2008)
+https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4
+#EXTINF:-1 tvg-logo="https://picsum.photos/seed/mv02/400/600" group-title="Filmes | Animação",O Sonho do Elefante (2006)
+https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4
+#EXTINF:-1 tvg-logo="https://picsum.photos/seed/mv03/400/600" group-title="Filmes | Ação",Chamas Maiores (2013)
+https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4
+#EXTINF:-1 tvg-logo="https://picsum.photos/seed/mv04/400/600" group-title="Filmes | Ação",Fugas Maiores (2013)
+https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4
+#EXTINF:-1 tvg-logo="https://picsum.photos/seed/mv05/400/600" group-title="Filmes | Comédia",Diversão Maior (2013)
+https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4
+#EXTINF:-1 tvg-logo="https://picsum.photos/seed/mv06/400/600" group-title="Filmes | Ação",Aventuras Maiores (2013)
+https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4
+#EXTINF:-1 tvg-logo="https://picsum.photos/seed/mv07/400/600" group-title="Filmes | Drama",Colapsos (2013)
+https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerMeltdowns.mp4
+#EXTINF:-1 tvg-logo="https://picsum.photos/seed/mv08/400/600" group-title="Filmes | Fantasia",Sintel: A Caçadora (2010)
+https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4
+#EXTINF:-1 tvg-logo="https://picsum.photos/seed/mv09/400/600" group-title="Filmes | Ficção",Lágrimas de Aço (2012)
+https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4
+#EXTINF:-1 tvg-logo="https://picsum.photos/seed/mv10/400/600" group-title="Filmes | Documentário",Sobre Rodas (2014)
+https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/VolkswagenGTIReview.mp4
+#EXTINF:-1 tvg-logo="https://picsum.photos/seed/mv11/400/600" group-title="Filmes | Aventura",Bullrun: A Corrida (2014)
+https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/WeAreGoingOnBullrun.mp4
+#EXTINF:-1 tvg-logo="https://picsum.photos/seed/mv12/400/600" group-title="Filmes | Comédia",Por Uma Nota Só (2014)
+https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/WhatCarCanYouGetForAGrand.mp4
+#EXTINF:-1 tvg-logo="https://picsum.photos/seed/sr01/400/600" group-title="Séries | Drama",Horizonte Perdido S01E01
+https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4
+#EXTINF:-1 tvg-logo="https://picsum.photos/seed/sr01/400/600" group-title="Séries | Drama",Horizonte Perdido S01E02
+https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4
+#EXTINF:-1 tvg-logo="https://picsum.photos/seed/sr01/400/600" group-title="Séries | Drama",Horizonte Perdido S01E03
+https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4
+#EXTINF:-1 tvg-logo="https://picsum.photos/seed/sr01/400/600" group-title="Séries | Drama",Horizonte Perdido S02E01
+https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4
+#EXTINF:-1 tvg-logo="https://picsum.photos/seed/sr02/400/600" group-title="Séries | Comédia",Vizinhos do Barulho S01E01
+https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerMeltdowns.mp4
+#EXTINF:-1 tvg-logo="https://picsum.photos/seed/sr02/400/600" group-title="Séries | Comédia",Vizinhos do Barulho S01E02
+https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4
+#EXTINF:-1 tvg-logo="https://picsum.photos/seed/sr02/400/600" group-title="Séries | Comédia",Vizinhos do Barulho S01E03
+https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4
+#EXTINF:-1 tvg-logo="https://picsum.photos/seed/sr03/400/600" group-title="Séries | Ficção",Estação Órbita S01E01
+https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4
+#EXTINF:-1 tvg-logo="https://picsum.photos/seed/sr03/400/600" group-title="Séries | Ficção",Estação Órbita S01E02
+https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4
+#EXTINF:-1 tvg-logo="https://picsum.photos/seed/sr03/400/600" group-title="Séries | Ficção",Estação Órbita S01E03
+https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4

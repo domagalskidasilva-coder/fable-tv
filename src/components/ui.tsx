@@ -29,6 +29,26 @@ export function SkeletonRow({ count = 7, poster = false }: { count?: number; pos
   );
 }
 
+export function SkeletonGrid({ poster = true }: { poster?: boolean }) {
+  return (
+    <div
+      className={cx(
+        "grid gap-4",
+        poster
+          ? "grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7"
+          : "grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5",
+      )}
+    >
+      {Array.from({ length: poster ? 21 : 15 }).map((_, i) => (
+        <div key={i}>
+          <div className={cx("skeleton rounded-2xl", poster ? "aspect-[2/3]" : "aspect-video")} />
+          <div className="skeleton mt-2.5 h-3 w-3/4 rounded" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export function EmptyState({
   icon,
   title,

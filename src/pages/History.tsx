@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { Chip, PageHeader } from "../components/Chrome";
 import { Button, Confirm, EmptyState, PlayIcon, Spinner } from "../components/ui";
 import { clearHistory, deleteHistoryEntry, listHistory } from "../lib/api";
 import { useI18n } from "../lib/i18n";
 import type { HistoryEntry, ItemType } from "../lib/types";
-import { cx, formatClock, formatDateTime, imageSrc, progressOf } from "../lib/utils";
+import { formatClock, formatDateTime, imageSrc, progressOf } from "../lib/utils";
 import { openCard } from "./Home";
 
 const TABS: Array<{ key: ItemType | "all"; label: string }> = [
@@ -31,29 +32,20 @@ export default function History() {
   useEffect(load, [load]);
 
   return (
-    <div className="flex h-full flex-col p-6">
-      <div className="mb-4 flex items-center justify-between">
-        <h1 className="text-xl font-extrabold text-ink">{t("history.title")}</h1>
+    <div className="flex h-full flex-col px-6 pt-6 md:px-10">
+      <PageHeader title={t("history.title")} icon={<HistoryIcon />}>
         {entries && entries.length > 0 && (
           <Button variant="danger" onClick={() => setConfirming(true)}>
             {t("history.clear")}
           </Button>
         )}
-      </div>
+      </PageHeader>
 
-      <div className="mb-5 flex gap-2">
+      <div className="mb-5 flex flex-wrap gap-2">
         {TABS.map(({ key, label }) => (
-          <button
-            key={key}
-            data-nav
-            onClick={() => setTab(key)}
-            className={cx(
-              "rounded-full px-4 py-1.5 text-xs font-semibold transition-colors",
-              tab === key ? "bg-accent text-white" : "bg-surface text-ink-dim hover:bg-surface-hover",
-            )}
-          >
+          <Chip key={key} active={tab === key} onClick={() => setTab(key)}>
             {t(label)}
-          </button>
+          </Chip>
         ))}
       </div>
 
@@ -135,5 +127,14 @@ export default function History() {
         }}
       />
     </div>
+  );
+}
+
+function HistoryIcon() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 7v5l3 3" />
+    </svg>
   );
 }

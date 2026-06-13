@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate, type NavigateFunction } from "react-router-dom";
 import { ChannelCard, ContinueCard, PosterCard } from "../components/Cards";
+import { Aurora } from "../components/Chrome";
 import { Hero } from "../components/Hero";
 import { Row, RowItem } from "../components/Row";
 import { Button, SkeletonRow } from "../components/ui";
@@ -61,6 +62,19 @@ export default function Home() {
   }, []);
   useEffect(load, [load]);
 
+  // Keep the home fresh after syncs/imports happen in other windows or while
+  // the app was in the background.
+  useEffect(() => {
+    const onFocus = () => load();
+    const onVisible = () => document.visibilityState === "visible" && load();
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [load]);
+
   const rowsRef = useGsap<HTMLDivElement>(
     (self) => {
       const reveals = self.querySelectorAll("[data-reveal]");
@@ -98,16 +112,20 @@ export default function Home() {
 
   if (isEmpty) {
     return (
-      <div className="flex h-full items-center justify-center p-8">
+      <div className="relative flex h-full items-center justify-center overflow-hidden p-8">
+        <Aurora />
         <div ref={welcomeRef} className="max-w-xl text-center">
-          <div className="mx-auto mb-6 grid h-24 w-24 place-items-center rounded-3xl bg-brand text-5xl font-black text-white shadow-2xl glow-accent">
+          <div className="mx-auto mb-7 grid h-24 w-24 place-items-center rounded-[28px] bg-brand text-5xl font-black text-white shadow-2xl glow-accent">
             F
           </div>
-          <h1 className="mb-3 text-4xl font-black tracking-tight text-ink">{t("home.welcome")}</h1>
-          <p className="mb-8 text-ink-dim">{t("home.welcomeSub")}</p>
-          <Button onClick={() => navigate("/sources")} className="px-7 py-3.5 text-base" autoFocus>
+          <h1 className="mb-4 text-4xl font-black leading-tight tracking-tight text-ink md:text-5xl">
+            {t("home.welcome")}
+          </h1>
+          <p className="mx-auto mb-8 max-w-md leading-relaxed text-ink-dim">{t("home.welcomeSub")}</p>
+          <Button onClick={() => navigate("/sources")} className="px-8 py-3.5 text-base" autoFocus>
             {t("home.addFirstSource")}
           </Button>
+          <p className="mt-8 text-xs text-ink-faint">{t("sources.legal")}</p>
         </div>
       </div>
     );

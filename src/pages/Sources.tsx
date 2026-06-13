@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { PageHeader } from "../components/Chrome";
 import { SourceModal } from "../components/SourceModal";
 import { Button, Confirm, EmptyState, Spinner } from "../components/ui";
 import {
@@ -79,9 +80,8 @@ export default function Sources() {
   };
 
   return (
-    <div className="flex h-full flex-col p-6">
-      <div className="mb-2 flex items-center justify-between">
-        <h1 className="text-xl font-extrabold text-ink">{t("sources.title")}</h1>
+    <div className="flex h-full flex-col px-6 pt-6 md:px-10">
+      <PageHeader title={t("sources.title")} icon={<SourcesIcon />}>
         <Button
           onClick={() => {
             setEditing(null);
@@ -90,8 +90,8 @@ export default function Sources() {
         >
           + {t("sources.add")}
         </Button>
-      </div>
-      <p className="mb-6 max-w-2xl text-sm text-ink-dim">{t("sources.subtitle")}</p>
+      </PageHeader>
+      <p className="-mt-2 mb-6 max-w-2xl text-sm leading-relaxed text-ink-dim">{t("sources.subtitle")}</p>
 
       <div className="flex-1 overflow-y-auto">
         {sources === null ? (
@@ -268,5 +268,15 @@ export default function Sources() {
         }}
       />
     </div>
+  );
+}
+
+function SourcesIcon() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 3v12" />
+      <path d="m7 10 5 5 5-5" />
+      <path d="M4 21h16" />
+    </svg>
   );
 }
