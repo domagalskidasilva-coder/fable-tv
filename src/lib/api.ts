@@ -27,7 +27,9 @@ import type {
   StreamInfo,
   SyncOptions,
   SyncProgress,
+  UpdateInfo,
 } from "./types";
+export { openUrl } from "@tauri-apps/plugin-opener";
 
 // Playlists (sources) — scoped to a profile
 export const listSources = (profileId?: number) =>
@@ -106,3 +108,6 @@ export const exportData = (path: string) => invoke<void>("export_data", { path }
 export const importData = (path: string) => invoke<ImportReport>("import_data", { path });
 export const getAppStats = () => invoke<AppStats>("get_app_stats");
 export const clearCache = (kind: "logos" | "epg" | "all") => invoke<void>("clear_cache", { kind });
+
+// Updates
+export const checkForUpdate = () => invoke<UpdateInfo>("check_for_update");

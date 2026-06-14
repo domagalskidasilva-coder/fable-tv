@@ -27,6 +27,7 @@ pub struct AppState {
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_opener::init())
         .setup(|app| {
             let data_dir = app.path().app_data_dir()?;
             let cache_dir = app.path().app_cache_dir()?;
@@ -89,6 +90,7 @@ pub fn run() {
             commands::import_data,
             commands::get_app_stats,
             commands::clear_cache,
+            commands::check_for_update,
         ])
         .run(tauri::generate_context!())
         .expect("erro ao iniciar o Fable TV");

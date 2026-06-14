@@ -1,11 +1,14 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
+import { BrandMark } from "./BrandLogo";
 import { listProfiles } from "../lib/api";
 import { Avatar } from "../lib/avatars";
 import { useI18n } from "../lib/i18n";
 import type { Profile } from "../lib/types";
 import { cx } from "../lib/utils";
 import { EASE, gsap, usePresence } from "../lib/gsap";
+import { motion } from "framer-motion";
+import { Home, Tv, Film, LayoutGrid, Search } from "lucide-react";
 
 const PRIMARY = ["home", "live", "movies", "series", "favorites"] as const;
 
@@ -62,37 +65,38 @@ function ProfileMenu({ onSwitchProfile }: { onSwitchProfile: () => void }) {
 
   return (
     <div ref={wrap} className="relative">
-      <button
+      <motion.button
+        whileHover={{ scale: 1.05 }}
+        whileTap={{ scale: 0.95 }}
         data-nav
         onClick={() => setOpen((v) => !v)}
         aria-label="perfil"
-        className="transition-transform hover:scale-105"
       >
         <Avatar
           image={active?.image}
           color={active?.color ?? "var(--accent)"}
           name={active?.name ?? "F"}
-          className="h-9 w-9 rounded-lg shadow-sm"
-          textClassName="text-sm"
+          className="h-10 w-10 rounded-full shadow-lg border-2 border-transparent transition-colors hover:border-accent"
+          textClassName="text-sm font-bold"
         />
-      </button>
+      </motion.button>
 
       {rendered && (
         <div
           ref={ref}
-          className="absolute right-0 top-12 z-50 w-64 overflow-hidden rounded-2xl border border-line bg-bg-elevated/95 p-2 shadow-2xl backdrop-blur-xl"
+          className="absolute right-0 top-14 z-50 w-64 overflow-hidden rounded-2xl border border-border-soft bg-bg-elevated p-2 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.8)]"
         >
-          <div className="flex items-center gap-3 rounded-xl px-3 py-2.5">
+          <div className="flex items-center gap-3 rounded-xl px-3 py-3">
             <Avatar
               image={active?.image}
               color={active?.color ?? "var(--accent)"}
               name={active?.name ?? "F"}
-              className="h-9 w-9 rounded-lg"
+              className="h-10 w-10 rounded-full"
               textClassName="text-sm"
             />
             <div className="min-w-0">
-              <p className="truncate text-sm font-semibold text-ink">{active?.name ?? "Fable"}</p>
-              <p className="text-[11px] text-ink-faint">{t("profiles.active")}</p>
+              <p className="truncate text-sm font-bold text-white">{active?.name ?? "Fable"}</p>
+              <p className="text-[11px] font-medium text-ink-dim">{t("profiles.active")}</p>
             </div>
           </div>
 
@@ -102,22 +106,22 @@ function ProfileMenu({ onSwitchProfile }: { onSwitchProfile: () => void }) {
               setOpen(false);
               onSwitchProfile();
             }}
-            className="mb-1 flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm font-medium text-ink transition-colors hover:bg-surface-hover"
+            className="mb-1 flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm font-semibold text-white transition-colors hover:bg-surface-hover"
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <path d="M8 3 4 7l4 4" /><path d="M4 7h12a4 4 0 0 1 4 4v0" />
               <path d="m16 21 4-4-4-4" /><path d="M20 17H8a4 4 0 0 1-4-4v0" />
             </svg>
             {t("profiles.switch")}
           </button>
 
-          <div className="my-1 h-px bg-line" />
+          <div className="my-1.5 h-px bg-border-soft" />
           {links.map(([path, label]) => (
             <button
               key={path}
               data-nav
               onClick={() => go(path)}
-              className="flex w-full items-center rounded-xl px-3 py-2 text-left text-sm text-ink-dim transition-colors hover:bg-surface-hover hover:text-ink"
+              className="flex w-full items-center rounded-xl px-3 py-2 text-left text-sm font-medium text-ink-dim transition-colors hover:bg-surface-hover hover:text-white"
             >
               {t(label)}
             </button>
@@ -138,13 +142,11 @@ export function TopNav({
   const navigate = useNavigate();
   const [scrolled, setScrolled] = useState(false);
 
-  // Content scrolls inside per-page containers; capture phase catches their
-  // scroll events at the document level so the bar can react app-wide.
   useEffect(() => {
     const onScroll = (e: Event) => {
       const target = e.target as HTMLElement;
       const top = target?.scrollTop ?? 0;
-      setScrolled(top > 28);
+      setScrolled(top > 20);
     };
     document.addEventListener("scroll", onScroll, true);
     return () => document.removeEventListener("scroll", onScroll, true);
@@ -153,28 +155,26 @@ export function TopNav({
   return (
     <header
       className={cx(
-        "absolute inset-x-0 top-0 z-40 transition-colors duration-300",
+        "absolute inset-x-0 top-0 z-40 transition-all duration-500",
         scrolled
-          ? "border-b border-line/70 bg-bg/85 backdrop-blur-xl"
-          : "border-b border-transparent bg-gradient-to-b from-black/70 to-transparent",
+          ? "border-b border-border-soft bg-surface/50 backdrop-blur-2xl shadow-xl py-1"
+          : "border-b border-transparent bg-transparent py-4",
       )}
     >
-      <div className="flex h-14 items-center gap-2 px-4 md:gap-6 md:px-7">
+      <div className="flex h-14 items-center gap-2 px-4 md:gap-8 md:px-10 max-w-[2000px] mx-auto">
         <button
           data-nav
           onClick={() => navigate("/")}
-          className="flex items-center gap-2"
+          className="flex items-center gap-2.5 transition-transform hover:scale-105 active:scale-95"
           aria-label="Fable TV"
         >
-          <span className="grid h-7 w-7 place-items-center rounded-md bg-brand text-sm font-black">
-            F
-          </span>
-          <span className="font-display hidden text-[19px] font-extrabold tracking-cine text-ink sm:inline">
-            Fable<span className="text-ink-faint font-semibold">TV</span>
+          <BrandMark />
+          <span className="font-display hidden text-xl font-extrabold tracking-tight text-white sm:inline text-shadow-sm">
+            Fable<span className="text-accent-strong font-bold">TV</span>
           </span>
         </button>
 
-        <nav className="hidden flex-1 items-center gap-1 md:flex">
+        <nav className="hidden flex-1 items-center gap-2 md:flex ml-4">
           {PRIMARY.map((key) => (
             <NavLink
               key={key}
@@ -183,16 +183,20 @@ export function TopNav({
               data-nav
               className={({ isActive }) =>
                 cx(
-                  "rounded-lg px-3 py-2 text-sm font-medium transition-colors",
-                  isActive ? "text-ink" : "text-ink-dim hover:text-ink",
+                  "relative rounded-xl px-4 py-2 text-sm font-semibold transition-colors",
+                  isActive ? "text-white" : "text-ink-dim hover:text-white hover:bg-surface-hover/50",
                 )
               }
             >
               {({ isActive }) => (
-                <span className="relative">
+                <span className="relative z-10">
                   {t(`nav.${key}`)}
                   {isActive && (
-                    <span className="absolute -bottom-1.5 left-0 right-0 mx-auto h-[3px] w-5 rounded-full bg-brand" />
+                    <motion.div
+                      layoutId="top-nav-indicator"
+                      className="absolute -bottom-2 left-0 right-0 mx-auto h-1 w-full rounded-t-lg bg-accent shadow-[0_-2px_12px_var(--accent-glow-strong)]"
+                      transition={{ type: "spring", stiffness: 350, damping: 30 }}
+                    />
                   )}
                 </span>
               )}
@@ -200,17 +204,14 @@ export function TopNav({
           ))}
         </nav>
 
-        <div className="ml-auto flex items-center gap-2 md:ml-0">
+        <div className="ml-auto flex items-center gap-4 md:ml-0">
           <NavLink
             to="/search"
             data-nav
             aria-label={t("nav.search")}
-            className="grid h-9 w-9 place-items-center rounded-full text-ink-dim transition-colors hover:bg-white/10 hover:text-ink"
+            className="grid h-10 w-10 place-items-center rounded-full text-ink-dim transition-all hover:bg-surface-hover hover:text-white"
           >
-            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-              <circle cx="11" cy="11" r="7" />
-              <path d="m21 21-4.3-4.3" />
-            </svg>
+            <Search size={20} strokeWidth={2.5} />
           </NavLink>
           <ProfileMenu onSwitchProfile={onSwitchProfile} />
         </div>
@@ -222,42 +223,17 @@ export function TopNav({
 export function BottomNav() {
   const { t } = useI18n();
   const items = ["home", "live", "movies", "series", "search"] as const;
+  
   const icons: Record<string, ReactNodeIcon> = {
-    home: (a) => (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill={a ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinejoin="round">
-        <path d="M3 10.5 12 3l9 7.5V21H3z" />
-      </svg>
-    ),
-    live: (a) => (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill={a ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinejoin="round">
-        <rect x="2" y="7" width="20" height="14" rx="2" />
-        <path d="m8 2 4 4 4-4" fill="none" />
-      </svg>
-    ),
-    movies: (a) => (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill={a ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinejoin="round">
-        <rect x="3" y="4" width="18" height="16" rx="2" />
-        <path d="M3 9h18M8 4v5M16 4v5" />
-      </svg>
-    ),
-    series: (a) => (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill={a ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinejoin="round">
-        <rect x="3" y="3" width="7" height="7" rx="1.5" />
-        <rect x="14" y="3" width="7" height="7" rx="1.5" />
-        <rect x="3" y="14" width="7" height="7" rx="1.5" />
-        <rect x="14" y="14" width="7" height="7" rx="1.5" />
-      </svg>
-    ),
-    search: () => (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-        <circle cx="11" cy="11" r="7" />
-        <path d="m21 21-4.3-4.3" />
-      </svg>
-    ),
+    home: (a) => <Home size={22} strokeWidth={a ? 2.5 : 2} fill={a ? "currentColor" : "none"} />,
+    live: (a) => <Tv size={22} strokeWidth={a ? 2.5 : 2} fill={a ? "currentColor" : "none"} />,
+    movies: (a) => <Film size={22} strokeWidth={a ? 2.5 : 2} fill={a ? "currentColor" : "none"} />,
+    series: (a) => <LayoutGrid size={22} strokeWidth={a ? 2.5 : 2} fill={a ? "currentColor" : "none"} />,
+    search: (a) => <Search size={22} strokeWidth={a ? 2.5 : 2} />,
   };
 
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-40 flex items-stretch border-t border-line bg-bg/90 backdrop-blur-xl md:hidden">
+    <nav className="fixed inset-x-0 bottom-0 z-40 flex items-stretch border-t border-border-soft bg-surface-2/80 backdrop-blur-3xl md:hidden pb-safe">
       {items.map((key) => (
         <NavLink
           key={key}
@@ -266,13 +242,20 @@ export function BottomNav() {
           data-nav
           className={({ isActive }) =>
             cx(
-              "flex flex-1 flex-col items-center gap-1 py-2.5 text-[10px] font-medium transition-colors",
+              "relative flex flex-1 flex-col items-center gap-1.5 py-3 text-[10px] font-bold transition-colors",
               isActive ? "text-accent-strong" : "text-ink-dim",
             )
           }
         >
           {({ isActive }) => (
             <>
+              {isActive && (
+                <motion.div
+                  layoutId="bottom-nav-indicator"
+                  className="absolute top-0 left-0 right-0 mx-auto h-[3px] w-8 rounded-b-full bg-accent shadow-[0_2px_8px_var(--accent-glow-strong)]"
+                  transition={{ type: "spring", stiffness: 350, damping: 30 }}
+                />
+              )}
               {icons[key](isActive)}
               {t(`nav.${key}`)}
             </>

@@ -3,6 +3,7 @@ import { HashRouter, Route, Routes, useLocation } from "react-router-dom";
 import { Layout } from "./components/Layout";
 import { getSettings, listProfiles } from "./lib/api";
 import { I18nProvider, type Language } from "./lib/i18n";
+import { profileAccentTokens } from "./lib/profileAccent";
 import { Spinner } from "./components/ui";
 import CatalogPage from "./pages/CatalogPage";
 import Favorites from "./pages/Favorites";
@@ -60,6 +61,7 @@ type Phase = "loading" | "gate" | "app";
 export default function App() {
   const [lang, setLang] = useState<Language>("pt-BR");
   const [theme, setTheme] = useState("dark");
+  const [profileColor, setProfileColor] = useState<string | null>(null);
   const [phase, setPhase] = useState<Phase>("loading");
 
   const refreshSettings = useCallback(() => {
@@ -69,6 +71,9 @@ export default function App() {
         setTheme(s.theme === "light" ? "light" : "dark");
       })
       .catch(() => undefined);
+    listProfiles()
+      .then((ps) => setProfileColor((ps.find((p) => p.active) ?? ps[0] ?? null)?.color ?? null))
+      .catch(() => undefined);
   }, []);
 
   useEffect(refreshSettings, [refreshSettings]);
@@ -76,13 +81,44 @@ export default function App() {
   // On launch, show the profile gate only when there's a real choice to make.
   useEffect(() => {
     listProfiles()
-      .then((ps) => setPhase(ps.length > 1 ? "gate" : "app"))
+      .then((ps) => {
+        setProfileColor((ps.find((p) => p.active) ?? ps[0] ?? null)?.color ?? null);
+        setPhase(ps.length > 1 ? "gate" : "app");
+      })
       .catch(() => setPhase("app"));
   }, []);
 
   useEffect(() => {
-    document.documentElement.setAttribute("data-theme", theme);
-  }, [theme]);
+    const root = document.documentElement;
+    const accent = profileAccentTokens(profileColor, theme);
+    root.setAttribute("data-theme", theme);
+    if (!accent) {
+      [
+        "--accent",
+        "--accent-2",
+        "--accent-strong",
+        "--accent-rgb",
+        "--accent-soft",
+        "--accent-glow",
+        "--accent-glow-strong",
+        "--accent-glow-subtle",
+      ].forEach((token) => root.style.removeProperty(token));
+      return;
+    }
+    root.style.setProperty("--accent", accent.accent);
+    root.style.setProperty("--accent-2", accent.accent2);
+    root.style.setProperty("--accent-strong", accent.accentStrong);
+    root.style.setProperty("--accent-rgb", accent.accentRgb);
+    root.style.setProperty("--accent-soft", accent.accentSoft);
+    root.style.setProperty("--accent-glow", accent.accentGlow);
+    root.style.setProperty("--accent-glow-strong", accent.accentGlowStrong);
+    root.style.setProperty("--accent-glow-subtle", accent.accentGlowSubtle);
+  }, [profileColor, theme]);
+
+  const enterApp = useCallback(() => {
+    refreshSettings();
+    setPhase("app");
+  }, [refreshSettings]);
 
   return (
     <I18nProvider lang={lang}>
@@ -92,7 +128,7 @@ export default function App() {
             <Spinner />
           </div>
         ) : phase === "gate" ? (
-          <WhoIsWatching onEnter={() => setPhase("app")} />
+          <WhoIsWatching onEnter={enterApp} />
         ) : (
           <Shell onSettingsChanged={refreshSettings} onSwitchProfile={() => setPhase("gate")} />
         )}

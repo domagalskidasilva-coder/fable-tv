@@ -75,6 +75,8 @@ export function EmptyState({
   );
 }
 
+import { motion } from "framer-motion";
+
 export function Button({
   children,
   onClick,
@@ -93,27 +95,29 @@ export function Button({
   autoFocus?: boolean;
 }) {
   const styles = {
-    primary: "bg-ink text-bg hover:bg-ink/90",
-    light: "bg-ink text-bg hover:bg-ink/90",
-    soft: "bg-accent-soft text-accent-strong hover:bg-accent hover:text-bg",
-    ghost: "bg-white/10 text-ink hover:bg-white/[0.16] border border-line",
-    danger: "bg-danger/15 text-danger hover:bg-danger hover:text-bg",
+    primary: "bg-ink text-bg hover:bg-ink/90 shadow-md",
+    light: "bg-white text-black hover:bg-white/90 shadow-lg",
+    soft: "bg-accent-soft text-accent-strong hover:bg-accent hover:text-white shadow-sm",
+    ghost: "bg-surface text-ink hover:bg-surface-hover border border-border shadow-sm backdrop-blur-md",
+    danger: "bg-danger/15 text-danger hover:bg-danger hover:text-white shadow-sm",
   }[variant];
   return (
-    <button
+    <motion.button
+      whileHover={{ scale: 1.02 }}
+      whileTap={{ scale: 0.96 }}
       type={type}
       data-nav
       autoFocus={autoFocus}
       disabled={disabled}
       onClick={onClick}
       className={cx(
-        "rounded-xl px-4 py-2 text-sm font-semibold transition-[filter,background-color,color] duration-200 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50",
+        "flex items-center justify-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50",
         styles,
         className,
       )}
     >
       {children}
-    </button>
+    </motion.button>
   );
 }
 
@@ -290,49 +294,24 @@ export function Field({ label, children }: { label: string; children: ReactNode 
 export const inputClass =
   "w-full rounded-xl border border-line bg-surface/80 px-3.5 py-2.5 text-sm text-ink placeholder:text-ink-faint focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30 transition-colors";
 
+import { Heart, Play, Info, Plus, ChevronLeft, ChevronRight } from "lucide-react";
+
 export function HeartIcon({ filled }: { filled: boolean }) {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill={filled ? "currentColor" : "none"}>
-      <path
-        d="M12 21s-7.5-4.7-10-9.2C.6 8.4 2.3 4.5 6 4.1c2.1-.2 4 .9 6 3 2-2.1 3.9-3.2 6-3 3.7.4 5.4 4.3 4 7.7-2.5 4.5-10 9.2-10 9.2z"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
+  return <Heart size={18} strokeWidth={1.8} fill={filled ? "currentColor" : "none"} />;
 }
 
 export function PlayIcon({ size = 20 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor">
-      <path d="M8 5.5v13l11-6.5L8 5.5z" />
-    </svg>
-  );
+  return <Play size={size} fill="currentColor" strokeWidth={0} />;
 }
 
 export function InfoIcon({ size = 20 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-      <circle cx="12" cy="12" r="9.5" />
-      <path d="M12 11v5" strokeLinecap="round" />
-      <circle cx="12" cy="7.6" r="1.1" fill="currentColor" stroke="none" />
-    </svg>
-  );
+  return <Info size={size} strokeWidth={2} />;
 }
 
 export function PlusIcon({ size = 18 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
-      <path d="M12 5v14M5 12h14" />
-    </svg>
-  );
+  return <Plus size={size} strokeWidth={2.2} />;
 }
 
 export function Chevron({ dir }: { dir: "left" | "right" }) {
-  return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-      {dir === "left" ? <path d="M15 18l-6-6 6-6" /> : <path d="M9 18l6-6-6-6" />}
-    </svg>
-  );
+  return dir === "left" ? <ChevronLeft size={22} strokeWidth={2.5} /> : <ChevronRight size={22} strokeWidth={2.5} />;
 }

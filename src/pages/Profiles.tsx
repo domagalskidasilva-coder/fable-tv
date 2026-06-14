@@ -9,6 +9,8 @@ import { EASE, gsap, useGsap } from "../lib/gsap";
 import { useI18n } from "../lib/i18n";
 import type { Profile } from "../lib/types";
 import { cx } from "../lib/utils";
+import { motion } from "framer-motion";
+import { Pencil, Trash2, Users } from "lucide-react";
 
 export default function Profiles({ onProfileChanged }: { onProfileChanged?: () => void }) {
   const { t } = useI18n();
@@ -65,43 +67,50 @@ export default function Profiles({ onProfileChanged }: { onProfileChanged?: () =
         </div>
       ) : (
         <>
-          <div ref={gridRef} className="mb-10 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+          <div ref={gridRef} className="mb-10 grid grid-cols-2 gap-5 sm:grid-cols-3 lg:grid-cols-4">
             {profiles.map((p) => (
-              <div
+              <motion.div
+                whileHover={{ scale: 1.04, y: -4 }}
+                transition={{ type: "spring", stiffness: 400, damping: 25 }}
                 key={p.id}
                 data-reveal
                 className={cx(
-                  "group relative flex flex-col items-center rounded-2xl border p-5 text-center transition-colors",
-                  p.active ? "border-accent/60 bg-accent-soft" : "border-line bg-surface hover:bg-surface-hover",
+                  "group relative flex flex-col items-center rounded-3xl border p-6 text-center shadow-lg backdrop-blur-xl transition-[border-color,box-shadow]",
+                  p.active 
+                    ? "border-accent/50 bg-accent-soft/40 shadow-[0_12px_40px_-12px_var(--accent-glow)]" 
+                    : "border-border-soft bg-surface/50 hover:border-accent/40 hover:bg-surface hover:shadow-[0_12px_40px_-12px_rgba(0,0,0,0.6)]",
                 )}
               >
                 <button
                   data-nav
                   onClick={() => switchTo(p.id)}
-                  className="flex w-full flex-col items-center"
+                  className="flex w-full flex-col items-center focus:outline-none"
                 >
                   <Avatar
                     image={p.image}
                     color={p.color}
                     name={p.name}
-                    className="mb-3 h-20 w-20 rounded-2xl shadow-lg"
-                    textClassName="text-3xl"
+                    className={cx(
+                      "mb-4 h-24 w-24 rounded-full shadow-2xl transition-transform duration-300 group-hover:scale-105",
+                      p.active && "ring-4 ring-accent ring-offset-4 ring-offset-bg"
+                    )}
+                    textClassName="text-4xl font-bold"
                   />
-                  <span className="w-full truncate font-semibold text-ink">{p.name}</span>
-                  <span className="mt-0.5 text-xs text-ink-dim">
+                  <span className="w-full truncate font-bold text-white text-lg">{p.name}</span>
+                  <span className="mt-1 text-xs font-medium text-ink-dim">
                     {t("profiles.counts", { c: p.channelCount, m: p.movieCount, s: p.seriesCount })}
                   </span>
                 </button>
-                <div className="mt-3 flex items-center gap-2">
+                <div className="mt-5 flex items-center justify-center gap-3">
                   {p.active ? (
-                    <span className="rounded-full bg-accent px-2.5 py-1 text-[11px] font-bold text-bg">
+                    <span className="rounded-full bg-accent px-3 py-1.5 text-[11px] font-black text-white shadow-md">
                       {t("profiles.active")}
                     </span>
                   ) : (
                     <button
                       data-nav
                       onClick={() => switchTo(p.id)}
-                      className="rounded-full bg-white/10 px-2.5 py-1 text-[11px] font-semibold text-ink hover:bg-white/[0.16]"
+                      className="rounded-full bg-white/10 px-3 py-1.5 text-[11px] font-bold text-white transition-colors hover:bg-white/20"
                     >
                       {t("profiles.switchTo")}
                     </button>
@@ -113,27 +122,22 @@ export default function Profiles({ onProfileChanged }: { onProfileChanged?: () =
                       setEditing(p);
                       setModalOpen(true);
                     }}
-                    className="grid h-7 w-7 place-items-center rounded-full text-ink-dim hover:bg-white/10 hover:text-ink"
+                    className="grid h-8 w-8 place-items-center rounded-full text-ink-dim transition-colors hover:bg-white/10 hover:text-white"
                   >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M12 20h9" />
-                      <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" />
-                    </svg>
+                    <Pencil size={15} strokeWidth={2.5} />
                   </button>
                   {profiles.length > 1 && (
                     <button
                       data-nav
                       aria-label={t("common.delete")}
                       onClick={() => setDeleting(p)}
-                      className="grid h-7 w-7 place-items-center rounded-full text-ink-dim hover:bg-danger/15 hover:text-danger"
+                      className="grid h-8 w-8 place-items-center rounded-full text-ink-dim transition-colors hover:bg-danger/20 hover:text-danger"
                     >
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                        <path d="M4 7h16M9 7V5h6v2M7 7l1 13h8l1-13" />
-                      </svg>
+                      <Trash2 size={16} strokeWidth={2.5} />
                     </button>
                   )}
                 </div>
-              </div>
+              </motion.div>
             ))}
           </div>
 
@@ -149,7 +153,10 @@ export default function Profiles({ onProfileChanged }: { onProfileChanged?: () =
         open={modalOpen}
         editing={editing}
         onClose={() => setModalOpen(false)}
-        onSaved={load}
+        onSaved={() => {
+          load();
+          onProfileChanged?.();
+        }}
       />
       <Confirm
         open={deleting !== null}

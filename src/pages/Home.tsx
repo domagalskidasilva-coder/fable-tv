@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate, type NavigateFunction } from "react-router-dom";
+import { BrandMark } from "../components/BrandLogo";
 import { ChannelCard, ContinueCard, PosterCard } from "../components/Cards";
 import { Hero } from "../components/Hero";
 import { RankedRow } from "../components/RankedRow";
@@ -118,9 +119,7 @@ export default function Home() {
     return (
       <div className="relative flex h-full items-center justify-center overflow-hidden p-8">
         <div ref={welcomeRef} className="max-w-xl text-center">
-          <div className="mx-auto mb-7 grid h-16 w-16 place-items-center rounded-2xl bg-brand text-3xl font-black">
-            F
-          </div>
+          <BrandMark size="lg" className="mx-auto mb-7" />
           <p className="eyebrow mb-4">Fable</p>
           <h1 className="font-display mb-4 text-4xl font-black leading-[1.02] tracking-cine text-ink md:text-5xl">
             {t("home.welcome")}

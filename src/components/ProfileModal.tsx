@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { createProfile, importProfileImage, updateProfile } from "../lib/api";
-import { AVATAR_PRESETS, Avatar } from "../lib/avatars";
+import { AVATAR_PRESETS, Avatar, DEFAULT_AVATAR_IMAGE } from "../lib/avatars";
 import { useI18n } from "../lib/i18n";
 import type { Profile } from "../lib/types";
 import { cx, errorMessage } from "../lib/utils";
@@ -35,7 +35,7 @@ export function ProfileModal({
     setError(null);
     setName(editing?.name ?? "");
     setColor(editing?.color ?? COLORS[0]);
-    setImage(editing?.image ?? null);
+    setImage(editing?.image ?? DEFAULT_AVATAR_IMAGE);
   }, [open, editing]);
 
   const upload = async () => {
@@ -106,14 +106,15 @@ export function ProfileModal({
             <button
               key={p.id}
               data-nav
-              aria-label={p.id}
+              aria-label={p.label}
+              title={p.label}
               onClick={() => setImage(key)}
               className={cx(
-                "rounded-xl transition-transform",
-                image === key ? "ring-2 ring-ink ring-offset-2 ring-offset-bg-elevated" : "hover:scale-105",
+                "rounded-2xl transition-transform",
+                image === key ? "ring-2 ring-accent ring-offset-2 ring-offset-bg-elevated" : "hover:scale-105",
               )}
             >
-              <Avatar image={key} color={color} name="" className="h-11 w-11 rounded-xl" />
+              <Avatar image={key} color={color} name="" className="h-14 w-14 rounded-2xl" />
             </button>
           );
         })}
@@ -121,7 +122,7 @@ export function ProfileModal({
           data-nav
           onClick={upload}
           className={cx(
-            "grid h-11 w-11 place-items-center rounded-xl border border-dashed border-line text-ink-faint transition-colors hover:border-ink hover:text-ink",
+            "grid h-14 w-14 place-items-center rounded-2xl border border-dashed border-line text-ink-faint transition-colors hover:border-ink hover:text-ink",
             image && !image.startsWith("preset:") && "border-accent text-accent-strong",
           )}
           aria-label={t("profiles.uploadImage")}
@@ -136,7 +137,7 @@ export function ProfileModal({
           <button
             data-nav
             onClick={() => setImage(null)}
-            className="grid h-11 w-11 place-items-center rounded-xl border border-line text-ink-faint transition-colors hover:border-danger hover:text-danger"
+            className="grid h-14 w-14 place-items-center rounded-2xl border border-line text-ink-faint transition-colors hover:border-danger hover:text-danger"
             aria-label={t("common.delete")}
             title={t("common.delete")}
           >
@@ -157,9 +158,12 @@ export function ProfileModal({
             onClick={() => setColor(c)}
             className={cx(
               "h-9 w-9 rounded-full transition-transform",
-              color === c ? "ring-2 ring-ink ring-offset-2 ring-offset-bg-elevated" : "hover:scale-110",
+              color === c ? "scale-105" : "hover:scale-110",
             )}
-            style={{ background: c }}
+            style={{
+              background: c,
+              boxShadow: color === c ? `0 0 0 2px var(--bg-elevated), 0 0 0 4px ${c}` : undefined,
+            }}
           />
         ))}
       </div>

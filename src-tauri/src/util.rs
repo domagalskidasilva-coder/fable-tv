@@ -51,6 +51,33 @@ pub fn extract_year(name: &str) -> Option<i64> {
     None
 }
 
+/// Compares dotted numeric versions; true if `a` is strictly newer than `b`.
+/// Tolerates a leading "v" and trailing suffixes (e.g. "1.2.0-beta").
+pub fn version_gt(a: &str, b: &str) -> bool {
+    fn parts(s: &str) -> Vec<u64> {
+        s.trim()
+            .trim_start_matches(['v', 'V'])
+            .split('.')
+            .map(|p| {
+                p.chars()
+                    .take_while(|c| c.is_ascii_digit())
+                    .collect::<String>()
+                    .parse()
+                    .unwrap_or(0)
+            })
+            .collect()
+    }
+    let (pa, pb) = (parts(a), parts(b));
+    for i in 0..pa.len().max(pb.len()) {
+        let x = pa.get(i).copied().unwrap_or(0);
+        let y = pb.get(i).copied().unwrap_or(0);
+        if x != y {
+            return x > y;
+        }
+    }
+    false
+}
+
 /// Detects image type from magic bytes; falls back to png.
 pub fn sniff_image_ext(bytes: &[u8]) -> &'static str {
     if bytes.starts_with(&[0xFF, 0xD8, 0xFF]) {
@@ -81,6 +108,17 @@ mod tests {
     #[test]
     fn escape_like_escapes_wildcards() {
         assert_eq!(escape_like("a%b_c\\d"), "a\\%b\\_c\\\\d");
+    }
+
+    #[test]
+    fn version_compare() {
+        assert!(version_gt("0.2.0", "0.1.0"));
+        assert!(version_gt("1.0.0", "0.9.9"));
+        assert!(version_gt("v0.1.1", "0.1.0"));
+        assert!(version_gt("0.1.10", "0.1.2"));
+        assert!(!version_gt("0.1.0", "0.1.0"));
+        assert!(!version_gt("0.1.0", "0.2.0"));
+        assert!(version_gt("1.2.0-beta", "1.1.0"));
     }
 
     #[test]

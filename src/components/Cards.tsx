@@ -2,8 +2,8 @@ import { useState } from "react";
 import type { MediaCard } from "../lib/types";
 import { cx, imageSrc, progressOf } from "../lib/utils";
 import { toggleFavorite } from "../lib/api";
-import { useHoverLift } from "../lib/gsap";
 import { HeartIcon, PlayIcon } from "./ui";
+import { motion } from "framer-motion";
 
 export function CardImage({
   src,
@@ -57,9 +57,9 @@ function FavoriteButton({ card }: { card: MediaCard }) {
         }
       }}
       className={cx(
-        "absolute right-2 top-2 z-10 grid h-8 w-8 place-items-center rounded-full bg-black/55 backdrop-blur-sm transition-all duration-200",
+        "absolute right-2 top-2 z-20 grid h-8 w-8 place-items-center rounded-full bg-black/40 backdrop-blur-md border border-white/10 transition-all duration-300",
         "opacity-0 group-hover:opacity-100 group-focus-within:opacity-100",
-        fav ? "text-danger opacity-100" : "text-white hover:scale-110",
+        fav ? "text-accent opacity-100 scale-100 shadow-[0_0_12px_var(--accent-glow)]" : "text-white hover:bg-black/60 hover:scale-110",
       )}
     >
       <HeartIcon filled={fav} />
@@ -69,46 +69,47 @@ function FavoriteButton({ card }: { card: MediaCard }) {
 
 function ProgressBar({ value }: { value: number }) {
   return (
-    <div className="absolute inset-x-0 bottom-0 h-1 bg-black/60">
-      <div className="h-full bg-brand" style={{ width: `${Math.round(value * 100)}%` }} />
+    <div className="absolute inset-x-0 bottom-0 h-1.5 bg-black/60 backdrop-blur-sm">
+      <div className="h-full bg-accent shadow-[0_0_8px_var(--accent-glow-strong)]" style={{ width: `${Math.round(value * 100)}%` }} />
     </div>
   );
 }
 
 /** Portrait card for movies and series. */
 export function PosterCard({ card, onOpen }: { card: MediaCard; onOpen: (c: MediaCard) => void }) {
-  const hover = useHoverLift<HTMLButtonElement>({ scale: 1.07, lift: -8 });
   const progress = progressOf(card.positionSecs, card.durationSecs);
   return (
-    <button
+    <motion.button
+      whileHover={{ scale: 1.06, y: -8 }}
+      whileTap={{ scale: 0.98 }}
+      transition={{ type: "spring", stiffness: 400, damping: 25 }}
       data-nav
-      ref={hover.ref}
-      onPointerEnter={hover.onPointerEnter}
-      onPointerLeave={hover.onPointerLeave}
-      onFocus={hover.onFocus}
-      onBlur={hover.onBlur}
       onClick={() => onOpen(card)}
-      className="group relative w-full origin-center text-left"
+      className="group relative w-full origin-bottom text-left"
       title={card.name}
     >
-      <div className="relative aspect-[2/3] w-full overflow-hidden rounded-md border border-line/60 bg-surface shadow-lg ring-0 transition-[box-shadow,border-color] duration-300 group-hover:border-white/25 group-hover:shadow-[0_24px_50px_-20px_rgba(0,0,0,0.8)]">
+      <div className="relative aspect-[2/3] w-full overflow-hidden rounded-xl border border-border-soft bg-surface shadow-lg transition-[box-shadow,border-color] duration-300 group-hover:border-accent/50 group-hover:shadow-[0_24px_50px_-16px_rgba(0,0,0,0.9),0_0_24px_var(--accent-glow-subtle)]">
         <FavoriteButton card={card} />
         <CardImage src={card.image} alt={card.name} className="h-full w-full" />
-        <div className="absolute inset-0 flex items-end bg-gradient-to-t from-black/85 via-black/0 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100 group-focus-within:opacity-100">
-          <div className="flex w-full items-center gap-2 p-3">
-            <span className="grid h-9 w-9 place-items-center rounded-full bg-white text-black shadow-lg">
-              <PlayIcon size={16} />
+        
+        {/* Gloss Overlay */}
+        <div className="absolute inset-0 bg-gradient-to-b from-white/10 via-transparent to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100 pointer-events-none" />
+
+        <div className="absolute inset-0 flex items-end bg-gradient-to-t from-black/90 via-black/20 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100 group-focus-within:opacity-100">
+          <div className="flex w-full items-center gap-3 p-4">
+            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-white text-black shadow-xl">
+              <PlayIcon size={18} />
             </span>
-            <span className="line-clamp-2 text-xs font-semibold text-white text-shadow-sm">
+            <span className="line-clamp-2 text-sm font-bold text-white text-shadow-sm leading-tight">
               {card.name}
             </span>
           </div>
         </div>
         {progress !== null && <ProgressBar value={progress} />}
       </div>
-      <p className="mt-2.5 truncate text-sm font-medium text-ink">{card.name}</p>
-      {card.subtitle && <p className="truncate text-xs text-ink-dim">{card.subtitle}</p>}
-    </button>
+      <p className="mt-3 truncate text-sm font-bold text-ink">{card.name}</p>
+      {card.subtitle && <p className="truncate text-xs font-medium text-ink-dim">{card.subtitle}</p>}
+    </motion.button>
   );
 }
 
@@ -122,67 +123,71 @@ export function ChannelCard({
   onOpen: (c: MediaCard) => void;
   epgLine?: string | null;
 }) {
-  const hover = useHoverLift<HTMLButtonElement>({ scale: 1.05, lift: -6 });
   return (
-    <button
+    <motion.button
+      whileHover={{ scale: 1.05, y: -6 }}
+      whileTap={{ scale: 0.98 }}
+      transition={{ type: "spring", stiffness: 400, damping: 25 }}
       data-nav
-      ref={hover.ref}
-      onPointerEnter={hover.onPointerEnter}
-      onPointerLeave={hover.onPointerLeave}
-      onFocus={hover.onFocus}
-      onBlur={hover.onBlur}
       onClick={() => onOpen(card)}
-      className="group relative w-full origin-center text-left"
+      className="group relative w-full origin-bottom text-left"
       title={card.name}
     >
-      <div className="relative flex aspect-video w-full items-center justify-center overflow-hidden rounded-md border border-line/60 bg-surface-2 shadow-md transition-[box-shadow,border-color] duration-300 group-hover:border-white/25 group-hover:shadow-[0_24px_50px_-20px_rgba(0,0,0,0.8)]">
+      <div className="relative flex aspect-video w-full items-center justify-center overflow-hidden rounded-xl border border-border-soft bg-surface-2 shadow-md transition-[box-shadow,border-color] duration-300 group-hover:border-accent/50 group-hover:shadow-[0_24px_50px_-16px_rgba(0,0,0,0.9),0_0_20px_var(--accent-glow-subtle)]">
         <FavoriteButton card={card} />
         <CardImage src={card.image} alt={card.name} contain className="h-full w-full" />
-        <div className="absolute inset-0 flex items-center justify-center bg-black/45 opacity-0 transition-opacity duration-300 group-hover:opacity-100 group-focus-within:opacity-100">
-          <span className="grid h-12 w-12 place-items-center rounded-full bg-brand text-white shadow-xl">
-            <PlayIcon />
+        
+        {/* Gloss Overlay */}
+        <div className="absolute inset-0 bg-gradient-to-br from-white/10 via-transparent to-black/40 opacity-0 transition-opacity duration-300 group-hover:opacity-100 pointer-events-none" />
+
+        <div className="absolute inset-0 flex items-center justify-center bg-black/50 backdrop-blur-[2px] opacity-0 transition-opacity duration-300 group-hover:opacity-100 group-focus-within:opacity-100">
+          <span className="grid h-14 w-14 place-items-center rounded-full bg-accent text-white shadow-xl shadow-accent-soft">
+            <PlayIcon size={24} />
           </span>
         </div>
       </div>
-      <p className="mt-2.5 truncate text-sm font-semibold text-ink">{card.name}</p>
-      <p className="truncate text-xs text-ink-dim">{epgLine ?? card.subtitle ?? " "}</p>
-    </button>
+      <p className="mt-3 truncate text-sm font-bold text-ink">{card.name}</p>
+      <p className="truncate text-xs font-medium text-ink-dim">{epgLine ?? card.subtitle ?? " "}</p>
+    </motion.button>
   );
 }
 
 /** Wide 16:9 card with progress for "continue watching". */
 export function ContinueCard({ card, onOpen }: { card: MediaCard; onOpen: (c: MediaCard) => void }) {
-  const hover = useHoverLift<HTMLButtonElement>({ scale: 1.04, lift: -6 });
   const progress = progressOf(card.positionSecs, card.durationSecs) ?? 0;
   return (
-    <button
+    <motion.button
+      whileHover={{ scale: 1.05, y: -6 }}
+      whileTap={{ scale: 0.98 }}
+      transition={{ type: "spring", stiffness: 400, damping: 25 }}
       data-nav
-      ref={hover.ref}
-      onPointerEnter={hover.onPointerEnter}
-      onPointerLeave={hover.onPointerLeave}
-      onFocus={hover.onFocus}
-      onBlur={hover.onBlur}
       onClick={() => onOpen(card)}
-      className="group relative w-72 shrink-0 origin-center text-left"
+      className="group relative w-72 shrink-0 origin-bottom text-left"
       title={card.name}
     >
-      <div className="relative aspect-video w-full overflow-hidden rounded-md border border-line/60 bg-surface shadow-lg transition-[box-shadow,border-color] duration-300 group-hover:border-white/25 group-hover:shadow-[0_24px_50px_-20px_rgba(0,0,0,0.8)]">
+      <div className="relative aspect-video w-full overflow-hidden rounded-xl border border-border-soft bg-surface shadow-lg transition-[box-shadow,border-color] duration-300 group-hover:border-accent/50 group-hover:shadow-[0_24px_50px_-16px_rgba(0,0,0,0.9),0_0_20px_var(--accent-glow-subtle)]">
         <FavoriteButton card={card} />
         <CardImage src={card.image} alt={card.name} className="h-full w-full" />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/10 to-transparent" />
-        <div className="absolute bottom-3 left-3 right-3">
+        
+        {/* Base Gradient */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent" />
+        
+        {/* Gloss Overlay */}
+        <div className="absolute inset-0 bg-gradient-to-b from-white/10 via-transparent to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100 pointer-events-none" />
+
+        <div className="absolute bottom-4 left-4 right-4 z-10">
           <p className="truncate text-sm font-bold text-white text-shadow">{card.name}</p>
           {card.subtitle && (
-            <p className="truncate text-xs text-white/70 text-shadow-sm">{card.subtitle}</p>
+            <p className="truncate text-xs font-medium text-white/80 text-shadow-sm mt-0.5">{card.subtitle}</p>
           )}
         </div>
-        <div className="absolute inset-0 flex items-center justify-center opacity-0 transition-opacity duration-300 group-hover:opacity-100 group-focus-within:opacity-100">
-          <span className="grid h-12 w-12 place-items-center rounded-full bg-white text-black shadow-xl">
-            <PlayIcon />
+        <div className="absolute inset-0 flex items-center justify-center bg-black/30 backdrop-blur-sm opacity-0 transition-opacity duration-300 group-hover:opacity-100 group-focus-within:opacity-100">
+          <span className="grid h-14 w-14 place-items-center rounded-full bg-white text-black shadow-xl">
+            <PlayIcon size={24} />
           </span>
         </div>
         <ProgressBar value={progress} />
       </div>
-    </button>
+    </motion.button>
   );
 }

@@ -7,6 +7,7 @@ import type { SyncProgress } from "../lib/types";
 import { cx } from "../lib/utils";
 import { EASE, gsap, useGsap } from "../lib/gsap";
 import { BottomNav, TopNav } from "./TopNav";
+import { motion, AnimatePresence } from "framer-motion";
 
 function Toast({ p }: { p: SyncProgress }) {
   const { t } = useI18n();
@@ -106,27 +107,21 @@ export function Layout({
     return () => window.removeEventListener("keydown", onKey);
   }, [navigate]);
 
-  const transitionRef = useGsap<HTMLDivElement>(
-    (self) => {
-      gsap.fromTo(
-        self,
-        { autoAlpha: 0, y: 12 },
-        { autoAlpha: 1, y: 0, duration: 0.45, ease: EASE.soft },
-      );
-    },
-    [location.pathname],
-  );
-
   return (
     <div className="relative h-screen overflow-hidden bg-bg">
-      <main className="h-full">
-        <div
-          key={location.pathname}
-          ref={transitionRef}
-          className={cx("h-full", isHome ? "pb-16 md:pb-0" : "pt-14 pb-16 md:pb-0")}
-        >
-          {children}
-        </div>
+      <main className="relative h-full w-full">
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={location.pathname}
+            initial={{ opacity: 0, scale: 0.98, filter: "blur(10px)" }}
+            animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
+            exit={{ opacity: 0, scale: 1.02, filter: "blur(10px)" }}
+            transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+            className={cx("absolute inset-0 h-full w-full", isHome ? "pb-16 md:pb-0" : "pt-14 pb-16 md:pb-0")}
+          >
+            {children}
+          </motion.div>
+        </AnimatePresence>
       </main>
 
       <TopNav onSettingsChanged={onSettingsChanged} onSwitchProfile={onSwitchProfile} />

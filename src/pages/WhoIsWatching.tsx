@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { BrandMark } from "../components/BrandLogo";
 import { listProfiles, setActiveProfile } from "../lib/api";
 import { Avatar } from "../lib/avatars";
 import { EASE, gsap, useGsap } from "../lib/gsap";
@@ -19,7 +20,7 @@ function ProfileTile({ profile, onPick }: { profile: Profile; onPick: () => void
         image={profile.image}
         color={profile.color}
         name={profile.name}
-        className="aspect-square w-full rounded-2xl shadow-lg ring-2 ring-transparent transition-all duration-200 group-hover:ring-ink group-focus-visible:ring-ink"
+        className="aspect-square w-full rounded-2xl shadow-lg ring-2 ring-transparent transition-all duration-200 group-hover:ring-accent group-focus-visible:ring-accent"
         textClassName="text-4xl md:text-5xl"
       />
       <span className="truncate text-sm font-medium text-ink-dim transition-colors group-hover:text-ink">
@@ -69,9 +70,9 @@ export default function WhoIsWatching({ onEnter }: { onEnter: () => void }) {
         <Spinner />
       ) : (
         <div ref={ref} className="flex flex-col items-center">
-          <p data-reveal className="eyebrow mb-3">
-            Fable
-          </p>
+          <div data-reveal className="mb-5">
+            <BrandMark size="lg" className="mx-auto" />
+          </div>
           <h1
             data-reveal
             className="font-display mb-12 text-center text-4xl font-black tracking-cine text-ink md:text-5xl"

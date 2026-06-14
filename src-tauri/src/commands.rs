@@ -663,6 +663,63 @@ fn dir_size(dir: &std::path::Path) -> i64 {
         .sum()
 }
 
+/// Checks GitHub Releases for a newer version. Read-only and unauthenticated
+/// (public API); a missing/empty release list simply reports "up to date".
+const UPDATE_REPO: &str = "domagalskidasilva-coder/fable-tv";
+
+#[tauri::command]
+pub async fn check_for_update(state: State<'_, AppState>) -> AppResult<UpdateInfo> {
+    let current = env!("CARGO_PKG_VERSION").to_string();
+    let url = format!("https://api.github.com/repos/{UPDATE_REPO}/releases/latest");
+    let resp = state
+        .http
+        .get(&url)
+        .header("Accept", "application/vnd.github+json")
+        .send()
+        .await?;
+
+    if !resp.status().is_success() {
+        // 404 = no releases published yet → nothing to update to.
+        return Ok(UpdateInfo {
+            current_version: current,
+            latest_version: None,
+            available: false,
+            url: None,
+            notes: None,
+        });
+    }
+
+    let v: serde_json::Value = resp.json().await?;
+    let tag = v.get("tag_name").and_then(|t| t.as_str()).unwrap_or("");
+    let latest = tag.trim_start_matches(['v', 'V']).to_string();
+    let html_url = v.get("html_url").and_then(|u| u.as_str()).map(String::from);
+    let notes = v
+        .get("body")
+        .and_then(|b| b.as_str())
+        .filter(|s| !s.trim().is_empty())
+        .map(|s| s.chars().take(2000).collect::<String>());
+    // Prefer a Windows installer asset; otherwise the release page.
+    let asset = v.get("assets").and_then(|a| a.as_array()).and_then(|arr| {
+        arr.iter().find_map(|a| {
+            let name = a.get("name")?.as_str()?.to_lowercase();
+            if name.ends_with(".exe") || name.ends_with(".msi") {
+                a.get("browser_download_url")?.as_str().map(String::from)
+            } else {
+                None
+            }
+        })
+    });
+    let available = !latest.is_empty() && crate::util::version_gt(&latest, &current);
+
+    Ok(UpdateInfo {
+        current_version: current,
+        latest_version: (!latest.is_empty()).then_some(latest),
+        available,
+        url: asset.or(html_url),
+        notes,
+    })
+}
+
 /// Clears selected local caches: "logos", "epg" or "all".
 #[tauri::command]
 pub async fn clear_cache(state: State<'_, AppState>, kind: String) -> AppResult<()> {

@@ -311,6 +311,16 @@ pub struct AppStats {
     pub favorite_count: i64,
 }
 
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UpdateInfo {
+    pub current_version: String,
+    pub latest_version: Option<String>,
+    pub available: bool,
+    pub url: Option<String>,
+    pub notes: Option<String>,
+}
+
 pub type Settings = HashMap<String, String>;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

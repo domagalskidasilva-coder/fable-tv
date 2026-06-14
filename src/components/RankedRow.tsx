@@ -39,7 +39,7 @@ function RankedCard({
 
       <div
         ref={hover.ref}
-        className="relative z-10 ml-auto aspect-[2/3] h-full origin-bottom-right overflow-hidden rounded-md border border-line/60 bg-surface shadow-lg transition-[box-shadow,border-color] duration-300 group-hover/rank:border-white/25 group-hover/rank:shadow-[0_24px_50px_-20px_rgba(0,0,0,0.8)]"
+        className="relative z-10 ml-auto aspect-[2/3] h-full origin-bottom-right overflow-hidden rounded-md border border-line/60 bg-surface shadow-lg transition-[box-shadow,border-color] duration-300 group-hover/rank:border-accent/40 group-hover/rank:shadow-[0_24px_50px_-20px_rgba(0,0,0,0.8)]"
       >
         <CardImage src={card.image} alt={card.name} className="h-full w-full" />
         <div className="absolute inset-0 flex items-center justify-center bg-black/30 opacity-0 transition-opacity duration-300 group-hover/rank:opacity-100 group-focus-within/rank:opacity-100">

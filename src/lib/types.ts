@@ -278,4 +278,12 @@ export interface ImportReport {
   favoritesPending: number;
 }
 
+export interface UpdateInfo {
+  currentVersion: string;
+  latestVersion: string | null;
+  available: boolean;
+  url: string | null;
+  notes: string | null;
+}
+
 export type Settings = Record<string, string>;
