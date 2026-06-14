@@ -5,7 +5,7 @@ import { toggleFavorite } from "../lib/api";
 import { useHoverLift } from "../lib/gsap";
 import { HeartIcon, PlayIcon } from "./ui";
 
-function CardImage({
+export function CardImage({
   src,
   alt,
   className,
@@ -91,7 +91,7 @@ export function PosterCard({ card, onOpen }: { card: MediaCard; onOpen: (c: Medi
       className="group relative w-full origin-center text-left"
       title={card.name}
     >
-      <div className="relative aspect-[2/3] w-full overflow-hidden rounded-2xl border border-line/60 bg-surface shadow-lg ring-0 transition-[box-shadow,border-color] duration-300 group-hover:border-white/25 group-hover:shadow-[0_24px_50px_-20px_rgba(0,0,0,0.8)]">
+      <div className="relative aspect-[2/3] w-full overflow-hidden rounded-md border border-line/60 bg-surface shadow-lg ring-0 transition-[box-shadow,border-color] duration-300 group-hover:border-white/25 group-hover:shadow-[0_24px_50px_-20px_rgba(0,0,0,0.8)]">
         <FavoriteButton card={card} />
         <CardImage src={card.image} alt={card.name} className="h-full w-full" />
         <div className="absolute inset-0 flex items-end bg-gradient-to-t from-black/85 via-black/0 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100 group-focus-within:opacity-100">
@@ -135,7 +135,7 @@ export function ChannelCard({
       className="group relative w-full origin-center text-left"
       title={card.name}
     >
-      <div className="relative flex aspect-video w-full items-center justify-center overflow-hidden rounded-2xl border border-line/60 bg-surface-2 shadow-md transition-[box-shadow,border-color] duration-300 group-hover:border-white/25 group-hover:shadow-[0_24px_50px_-20px_rgba(0,0,0,0.8)]">
+      <div className="relative flex aspect-video w-full items-center justify-center overflow-hidden rounded-md border border-line/60 bg-surface-2 shadow-md transition-[box-shadow,border-color] duration-300 group-hover:border-white/25 group-hover:shadow-[0_24px_50px_-20px_rgba(0,0,0,0.8)]">
         <FavoriteButton card={card} />
         <CardImage src={card.image} alt={card.name} contain className="h-full w-full" />
         <div className="absolute inset-0 flex items-center justify-center bg-black/45 opacity-0 transition-opacity duration-300 group-hover:opacity-100 group-focus-within:opacity-100">
@@ -166,7 +166,7 @@ export function ContinueCard({ card, onOpen }: { card: MediaCard; onOpen: (c: Me
       className="group relative w-72 shrink-0 origin-center text-left"
       title={card.name}
     >
-      <div className="relative aspect-video w-full overflow-hidden rounded-2xl border border-line/60 bg-surface shadow-lg transition-[box-shadow,border-color] duration-300 group-hover:border-white/25 group-hover:shadow-[0_24px_50px_-20px_rgba(0,0,0,0.8)]">
+      <div className="relative aspect-video w-full overflow-hidden rounded-md border border-line/60 bg-surface shadow-lg transition-[box-shadow,border-color] duration-300 group-hover:border-white/25 group-hover:shadow-[0_24px_50px_-20px_rgba(0,0,0,0.8)]">
         <FavoriteButton card={card} />
         <CardImage src={card.image} alt={card.name} className="h-full w-full" />
         <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/10 to-transparent" />

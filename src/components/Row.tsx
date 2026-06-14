@@ -20,9 +20,13 @@ export function Row({
 
   return (
     <section data-reveal className="group/row mb-9">
-      <div className="mb-3 flex items-center justify-between px-1">
-        <h2 className="text-lg font-bold tracking-tight text-ink">{title}</h2>
-        {action}
+      <div className="mb-3 flex items-baseline gap-3 px-1">
+        <h2 className="text-base font-bold tracking-tight text-ink md:text-lg">{title}</h2>
+        {action && (
+          <span className="-translate-x-2 opacity-0 transition-all duration-200 group-hover/row:translate-x-0 group-hover/row:opacity-100">
+            {action}
+          </span>
+        )}
       </div>
       <div className="relative">
         <button

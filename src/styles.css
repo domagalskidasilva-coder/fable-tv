@@ -8,21 +8,21 @@
 
 :root,
 [data-theme="dark"] {
-  --bg: #0b0a09;
-  --bg-2: #100e0c;
-  --bg-elevated: #151210;
-  --surface: #1a1714;
-  --surface-2: #221d18;
-  --surface-hover: #2a241e;
-  --border: rgba(244, 239, 230, 0.10);
-  --border-soft: rgba(244, 239, 230, 0.055);
-  --text: #f4efe6;
-  --text-dim: #ada594;
-  --text-faint: #7b7466;
+  --bg: #0e0e10;
+  --bg-2: #141416;
+  --bg-elevated: #18181b;
+  --surface: #1c1c1f;
+  --surface-2: #232327;
+  --surface-hover: #2b2b30;
+  --border: rgba(255, 255, 255, 0.09);
+  --border-soft: rgba(255, 255, 255, 0.05);
+  --text: #f5f5f6;
+  --text-dim: #a6a6ad;
+  --text-faint: #6f6f78;
   --accent: #e8b65a;
   --accent-2: #d89a3c;
   --accent-strong: #f3c970;
-  --accent-soft: rgba(232, 182, 90, 0.13);
+  --accent-soft: rgba(232, 182, 90, 0.14);
   --danger: #e4675f;
   --ok: #74c08e;
   --gold: #e8b65a;
@@ -97,7 +97,7 @@ body::after {
   inset: 0;
   z-index: 9999;
   pointer-events: none;
-  opacity: 0.035;
+  opacity: 0.022;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
 }
 

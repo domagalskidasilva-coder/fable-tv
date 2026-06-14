@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useNavigate, type NavigateFunction } from "react-router-dom";
 import { ChannelCard, ContinueCard, PosterCard } from "../components/Cards";
 import { Hero } from "../components/Hero";
+import { RankedRow } from "../components/RankedRow";
 import { Row, RowItem } from "../components/Row";
 import { Button, SkeletonRow } from "../components/ui";
 import { getHomeData, startSync } from "../lib/api";
@@ -41,9 +42,13 @@ export function playCard(navigate: NavigateFunction, card: MediaCard) {
 }
 
 function pickFeatured(data: HomeData): MediaCard | null {
+  // Prefer a movie so the billboard can show a real synopsis (cheap detail
+  // fetch); fall back through the other rows otherwise.
+  const cw = data.continueWatching[0];
+  if (cw?.itemType === "movie") return cw;
   return (
-    data.continueWatching[0] ??
     data.latestMovies[0] ??
+    cw ??
     data.latestSeries[0] ??
     data.favorites[0] ??
     data.recentChannels[0] ??
@@ -140,6 +145,15 @@ export default function Home() {
     </button>
   );
 
+  // "Top 10" uses a heuristic order (most recently added), interleaving movies
+  // and series — there is no real popularity signal in a local library.
+  const top10: MediaCard[] = [];
+  for (let i = 0; i < 10; i++) {
+    if (data.latestMovies[i]) top10.push(data.latestMovies[i]);
+    if (data.latestSeries[i]) top10.push(data.latestSeries[i]);
+  }
+  const top10List = top10.slice(0, 10);
+
   return (
     <div className="h-full overflow-y-auto">
       {featured && (
@@ -173,6 +187,10 @@ export default function Home() {
               ),
             )}
           </Row>
+        )}
+
+        {top10List.length >= 3 && (
+          <RankedRow title={t("home.top10")} cards={top10List} onOpen={open} />
         )}
 
         {data.recentChannels.length > 0 && (
