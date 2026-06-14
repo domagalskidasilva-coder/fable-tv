@@ -202,7 +202,7 @@ const DEFAULT_COLOR: &str = "#e8b65a";
 
 pub fn list_profiles(conn: &Connection, active_id: i64) -> AppResult<Vec<Profile>> {
     let mut stmt = conn.prepare(
-        "SELECT p.id, p.name, p.color,
+        "SELECT p.id, p.name, p.color, p.image,
                 (SELECT COUNT(*) FROM sources s WHERE s.profile_id = p.id),
                 (SELECT COUNT(*) FROM channels c JOIN sources s ON s.id = c.source_id WHERE s.profile_id = p.id),
                 (SELECT COUNT(*) FROM movies m JOIN sources s ON s.id = m.source_id WHERE s.profile_id = p.id),
@@ -215,23 +215,29 @@ pub fn list_profiles(conn: &Connection, active_id: i64) -> AppResult<Vec<Profile
                 id: r.get(0)?,
                 name: r.get(1)?,
                 color: r.get(2)?,
+                image: r.get(3)?,
                 active: r.get::<_, i64>(0)? == active_id,
-                source_count: r.get(3)?,
-                channel_count: r.get(4)?,
-                movie_count: r.get(5)?,
-                series_count: r.get(6)?,
+                source_count: r.get(4)?,
+                channel_count: r.get(5)?,
+                movie_count: r.get(6)?,
+                series_count: r.get(7)?,
             })
         })?
         .collect::<Result<Vec<_>, _>>()?;
     Ok(rows)
 }
 
-pub fn create_profile(conn: &Connection, name: &str, color: Option<&str>) -> AppResult<i64> {
+pub fn create_profile(
+    conn: &Connection,
+    name: &str,
+    color: Option<&str>,
+    image: Option<&str>,
+) -> AppResult<i64> {
     let name = crate::security::sanitize_name(name, "Perfil");
     let color = sanitize_color(color);
     conn.execute(
-        "INSERT INTO profiles (name, color, created_at) VALUES (?1, ?2, ?3)",
-        params![name, color, now_ts()],
+        "INSERT INTO profiles (name, color, image, created_at) VALUES (?1, ?2, ?3, ?4)",
+        params![name, color, image, now_ts()],
     )
     .map_err(|e| match e {
         rusqlite::Error::SqliteFailure(err, _)
@@ -244,12 +250,18 @@ pub fn create_profile(conn: &Connection, name: &str, color: Option<&str>) -> App
     Ok(conn.last_insert_rowid())
 }
 
-pub fn update_profile(conn: &Connection, id: i64, name: &str, color: Option<&str>) -> AppResult<()> {
+pub fn update_profile(
+    conn: &Connection,
+    id: i64,
+    name: &str,
+    color: Option<&str>,
+    image: Option<&str>,
+) -> AppResult<()> {
     let name = crate::security::sanitize_name(name, "Perfil");
     let color = sanitize_color(color);
     conn.execute(
-        "UPDATE profiles SET name = ?1, color = ?2 WHERE id = ?3",
-        params![name, color, id],
+        "UPDATE profiles SET name = ?1, color = ?2, image = ?3 WHERE id = ?4",
+        params![name, color, image, id],
     )
     .map_err(|e| match e {
         rusqlite::Error::SqliteFailure(err, _)
@@ -415,12 +427,16 @@ mod tests {
     #[test]
     fn profiles_create_switch_delete() {
         let db = temp_db();
-        let pid = db.write(|c| create_profile(c, "Crianças", Some("#3aa0ff"))).unwrap();
+        let pid = db
+            .write(|c| create_profile(c, "Crianças", Some("#3aa0ff"), Some("preset:nebula")))
+            .unwrap();
         let profiles = db.read(move |c| list_profiles(c, pid)).unwrap();
         assert_eq!(profiles.len(), 2);
-        assert!(profiles.iter().any(|p| p.name == "Crianças" && p.active && p.color == "#3aa0ff"));
+        assert!(profiles
+            .iter()
+            .any(|p| p.name == "Crianças" && p.active && p.color == "#3aa0ff" && p.image.as_deref() == Some("preset:nebula")));
 
-        assert!(db.write(|c| create_profile(c, "Crianças", None)).is_err());
+        assert!(db.write(|c| create_profile(c, "Crianças", None, None)).is_err());
 
         db.write(move |c| delete_profile(c, pid)).unwrap();
         let profiles = db.read(|c| list_profiles(c, 1)).unwrap();

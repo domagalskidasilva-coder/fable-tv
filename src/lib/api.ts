@@ -98,6 +98,8 @@ export const updateProfile = (id: number, profile: NewProfile) =>
   invoke<void>("update_profile", { id, profile });
 export const deleteProfile = (id: number) => invoke<void>("delete_profile", { id });
 export const setActiveProfile = (id: number) => invoke<void>("set_active_profile", { id });
+export const importProfileImage = (path: string) =>
+  invoke<string>("import_profile_image", { path });
 
 // Data management
 export const exportData = (path: string) => invoke<void>("export_data", { path });

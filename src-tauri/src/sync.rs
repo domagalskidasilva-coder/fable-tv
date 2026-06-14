@@ -246,6 +246,7 @@ pub fn build_catalog(playlist: m3u::M3uPlaylist) -> CatalogBatch {
                     stream_url: entry.url.clone(),
                     duration_secs: (entry.duration > 0.0).then(|| entry.duration as i64),
                     plot: None,
+                    thumbnail_url: None,
                 });
             }
             ItemKind::Movie => movies.push(catalog::MovieRec {
@@ -599,35 +600,38 @@ pub async fn fetch_series_episodes(
     let ext_id: i64 = external_id
         .parse()
         .map_err(|_| AppError::Invalid("identificador de série inválido".into()))?;
-    let episodes = api.series_episodes(ext_id).await?;
-    let recs: Vec<(i64, i64, String, String, Option<i64>, Option<String>)> = episodes
-        .iter()
-        .map(|e| {
-            (
-                e.season,
-                e.episode_num,
-                e.title.clone(),
-                api.episode_url(&e.id.to_string(), &e.extension),
-                e.duration_secs,
-                e.plot.clone(),
-            )
-        })
-        .collect();
+    let (episodes, extra) = api.series_info(ext_id).await?;
+    let recs: Vec<(i64, i64, String, String, Option<i64>, Option<String>, Option<String>)> =
+        episodes
+            .iter()
+            .map(|e| {
+                (
+                    e.season,
+                    e.episode_num,
+                    e.title.clone(),
+                    api.episode_url(&e.id.to_string(), &e.extension),
+                    e.duration_secs,
+                    e.plot.clone(),
+                    e.cover.clone(),
+                )
+            })
+            .collect();
     db.write_async(move |c| {
         let tx = c.transaction()?;
         {
             let mut stmt = tx.prepare(
                 "INSERT INTO episodes (series_id, source_id, season, episode_num, name,
-                    search_text, stream_url, duration_secs, plot, created_at)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)
+                    search_text, stream_url, duration_secs, plot, thumbnail_url, created_at)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)
                  ON CONFLICT(series_id, season, episode_num) DO UPDATE SET
                    name = excluded.name,
                    search_text = excluded.search_text,
                    stream_url = excluded.stream_url,
                    duration_secs = excluded.duration_secs,
-                   plot = COALESCE(excluded.plot, episodes.plot)",
+                   plot = COALESCE(excluded.plot, episodes.plot),
+                   thumbnail_url = COALESCE(excluded.thumbnail_url, episodes.thumbnail_url)",
             )?;
-            for (season, ep_num, name, url, dur, plot) in &recs {
+            for (season, ep_num, name, url, dur, plot, thumb) in &recs {
                 stmt.execute(rusqlite::params![
                     series_id,
                     source_id,
@@ -638,12 +642,96 @@ pub async fn fetch_series_episodes(
                     url,
                     dur,
                     plot,
+                    thumb,
                     crate::util::now_ts(),
                 ])?;
             }
+            // Enrich the series row with metadata from the same call.
+            tx.execute(
+                "UPDATE series SET
+                    backdrop_url = COALESCE(?2, backdrop_url),
+                    actors = COALESCE(?3, actors),
+                    director = COALESCE(?4, director),
+                    trailer = COALESCE(?5, trailer),
+                    plot = COALESCE(?6, plot),
+                    genre = COALESCE(?7, genre)
+                 WHERE id = ?1",
+                rusqlite::params![
+                    series_id,
+                    extra.backdrop,
+                    extra.cast,
+                    extra.director,
+                    extra.trailer,
+                    extra.plot,
+                    extra.genre,
+                ],
+            )?;
         }
         tx.commit()?;
         catalog::mark_series_episodes_synced(c, series_id)
+    })
+    .await
+}
+
+/// Fetches full movie metadata on demand (cast/director/backdrop/etc.) and
+/// caches it on the movie row. No-op for non-API sources or once cached.
+pub async fn fetch_movie_info(
+    db: &Arc<Db>,
+    http: &reqwest::Client,
+    movie_id: i64,
+) -> AppResult<()> {
+    let (source_id, external_id) = db
+        .read_async(move |c| {
+            Ok(c.query_row(
+                "SELECT source_id, external_id FROM movies WHERE id = ?1",
+                rusqlite::params![movie_id],
+                |r| Ok((r.get::<_, i64>(0)?, r.get::<_, Option<String>>(1)?)),
+            )?)
+        })
+        .await?;
+    let Some(external_id) = external_id else { return Ok(()) };
+    let source = db.read_async(move |c| sources::get_row(c, source_id)).await?;
+    if source.kind != "xc_api" {
+        return Ok(());
+    }
+    let api = CatalogApi::new(
+        &source.url,
+        source.username.as_deref().unwrap_or(""),
+        source.password.as_deref().unwrap_or(""),
+        http,
+    )?;
+    let Ok(ext_id) = external_id.parse::<i64>() else { return Ok(()) };
+    let info = api.vod_info(ext_id).await?;
+    db.write_async(move |c| {
+        c.execute(
+            "UPDATE movies SET
+                backdrop_url = COALESCE(?2, backdrop_url),
+                actors = COALESCE(?3, actors),
+                director = COALESCE(?4, director),
+                trailer = COALESCE(?5, trailer),
+                country = COALESCE(?6, country),
+                plot = COALESCE(?7, plot),
+                genre = COALESCE(?8, genre),
+                duration_secs = COALESCE(?9, duration_secs),
+                rating = COALESCE(?10, rating),
+                year = COALESCE(?11, year),
+                info_synced = 1
+             WHERE id = ?1",
+            rusqlite::params![
+                movie_id,
+                info.backdrop,
+                info.cast,
+                info.director,
+                info.trailer,
+                info.country,
+                info.plot,
+                info.genre,
+                info.duration_secs,
+                info.rating,
+                info.year,
+            ],
+        )?;
+        Ok(())
     })
     .await
 }

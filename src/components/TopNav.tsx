@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { listProfiles } from "../lib/api";
+import { Avatar } from "../lib/avatars";
 import { useI18n } from "../lib/i18n";
 import type { Profile } from "../lib/types";
 import { cx } from "../lib/utils";
@@ -65,10 +66,15 @@ function ProfileMenu({ onSwitchProfile }: { onSwitchProfile: () => void }) {
         data-nav
         onClick={() => setOpen((v) => !v)}
         aria-label="perfil"
-        className="grid h-9 w-9 place-items-center rounded-lg text-sm font-bold text-bg shadow-sm transition-transform hover:scale-105"
-        style={{ background: active?.color ?? "var(--accent)" }}
+        className="transition-transform hover:scale-105"
       >
-        {(active?.name ?? "F").slice(0, 1).toUpperCase()}
+        <Avatar
+          image={active?.image}
+          color={active?.color ?? "var(--accent)"}
+          name={active?.name ?? "F"}
+          className="h-9 w-9 rounded-lg shadow-sm"
+          textClassName="text-sm"
+        />
       </button>
 
       {rendered && (
@@ -77,12 +83,13 @@ function ProfileMenu({ onSwitchProfile }: { onSwitchProfile: () => void }) {
           className="absolute right-0 top-12 z-50 w-64 overflow-hidden rounded-2xl border border-line bg-bg-elevated/95 p-2 shadow-2xl backdrop-blur-xl"
         >
           <div className="flex items-center gap-3 rounded-xl px-3 py-2.5">
-            <span
-              className="grid h-9 w-9 place-items-center rounded-lg text-sm font-bold text-bg"
-              style={{ background: active?.color ?? "var(--accent)" }}
-            >
-              {(active?.name ?? "F").slice(0, 1).toUpperCase()}
-            </span>
+            <Avatar
+              image={active?.image}
+              color={active?.color ?? "var(--accent)"}
+              name={active?.name ?? "F"}
+              className="h-9 w-9 rounded-lg"
+              textClassName="text-sm"
+            />
             <div className="min-w-0">
               <p className="truncate text-sm font-semibold text-ink">{active?.name ?? "Fable"}</p>
               <p className="text-[11px] text-ink-faint">{t("profiles.active")}</p>

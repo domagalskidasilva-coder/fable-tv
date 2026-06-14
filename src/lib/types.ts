@@ -120,6 +120,7 @@ export interface EpisodeOut {
   name: string;
   durationSecs: number | null;
   plot: string | null;
+  thumbnail: string | null;
   positionSecs: number | null;
   watchedDurationSecs: number | null;
   completed: boolean;
@@ -136,10 +137,14 @@ export interface SeriesDetail {
   sourceId: number;
   name: string;
   cover: string | null;
+  backdrop: string | null;
   plot: string | null;
   year: number | null;
   rating: string | null;
   genre: string | null;
+  cast: string[];
+  director: string | null;
+  trailer: string | null;
   favorite: boolean;
   seasons: Season[];
 }
@@ -149,11 +154,16 @@ export interface MovieDetail {
   sourceId: number;
   name: string;
   image: string | null;
+  backdrop: string | null;
   year: number | null;
   durationSecs: number | null;
   rating: string | null;
   plot: string | null;
   genre: string | null;
+  cast: string[];
+  director: string | null;
+  trailer: string | null;
+  country: string | null;
   favorite: boolean;
   positionSecs: number | null;
   watchedDurationSecs: number | null;
@@ -234,6 +244,7 @@ export interface Profile {
   id: number;
   name: string;
   color: string;
+  image: string | null;
   active: boolean;
   sourceCount: number;
   channelCount: number;
@@ -244,6 +255,7 @@ export interface Profile {
 export interface NewProfile {
   name: string;
   color: string | null;
+  image: string | null;
 }
 
 export interface AppStats {

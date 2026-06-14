@@ -1,12 +1,13 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { listProfiles, setActiveProfile } from "../lib/api";
+import { Avatar } from "../lib/avatars";
 import { EASE, gsap, useGsap } from "../lib/gsap";
 import { useI18n } from "../lib/i18n";
 import type { Profile } from "../lib/types";
 import { Spinner } from "../components/ui";
 
-function Avatar({ profile, onPick }: { profile: Profile; onPick: () => void }) {
+function ProfileTile({ profile, onPick }: { profile: Profile; onPick: () => void }) {
   return (
     <button
       data-nav
@@ -14,12 +15,13 @@ function Avatar({ profile, onPick }: { profile: Profile; onPick: () => void }) {
       onClick={onPick}
       className="group flex w-32 flex-col items-center gap-3 md:w-40"
     >
-      <span
-        className="grid aspect-square w-full place-items-center rounded-2xl text-4xl font-black text-bg shadow-lg ring-2 ring-transparent transition-all duration-200 group-hover:ring-ink group-focus-visible:ring-ink md:text-5xl"
-        style={{ background: profile.color }}
-      >
-        {profile.name.slice(0, 1).toUpperCase()}
-      </span>
+      <Avatar
+        image={profile.image}
+        color={profile.color}
+        name={profile.name}
+        className="aspect-square w-full rounded-2xl shadow-lg ring-2 ring-transparent transition-all duration-200 group-hover:ring-ink group-focus-visible:ring-ink"
+        textClassName="text-4xl md:text-5xl"
+      />
       <span className="truncate text-sm font-medium text-ink-dim transition-colors group-hover:text-ink">
         {profile.name}
       </span>
@@ -79,7 +81,7 @@ export default function WhoIsWatching({ onEnter }: { onEnter: () => void }) {
 
           <div className="flex flex-wrap items-start justify-center gap-6 md:gap-9">
             {profiles.map((p) => (
-              <Avatar key={p.id} profile={p} onPick={() => pick(p.id)} />
+              <ProfileTile key={p.id} profile={p} onPick={() => pick(p.id)} />
             ))}
 
             <button

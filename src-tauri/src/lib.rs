@@ -83,6 +83,7 @@ pub fn run() {
             commands::create_profile,
             commands::update_profile,
             commands::delete_profile,
+            commands::import_profile_image,
             commands::set_active_profile,
             commands::export_data,
             commands::import_data,

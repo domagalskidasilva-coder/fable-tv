@@ -233,8 +233,23 @@ pub async fn list_series(
         .await
 }
 
+/// Movie detail; for API sources the full metadata (cast/director/backdrop)
+/// is fetched and cached on demand the first time the user opens the movie.
 #[tauri::command]
 pub async fn get_movie_detail(state: State<'_, AppState>, id: i64) -> AppResult<MovieDetail> {
+    let synced: bool = state
+        .db
+        .read_async(move |c| {
+            Ok(c.query_row(
+                "SELECT info_synced FROM movies WHERE id = ?1",
+                rusqlite::params![id],
+                |r| r.get::<_, i64>(0),
+            )? != 0)
+        })
+        .await?;
+    if !synced {
+        crate::sync::fetch_movie_info(&state.db, &state.http, id).await?;
+    }
     state
         .db
         .read_async(move |c| {
@@ -502,7 +517,9 @@ pub async fn list_profiles(state: State<'_, AppState>) -> AppResult<Vec<Profile>
 pub async fn create_profile(state: State<'_, AppState>, profile: NewProfile) -> AppResult<i64> {
     state
         .db
-        .write_async(move |c| user_data::create_profile(c, &profile.name, profile.color.as_deref()))
+        .write_async(move |c| {
+            user_data::create_profile(c, &profile.name, profile.color.as_deref(), profile.image.as_deref())
+        })
         .await
 }
 
@@ -514,8 +531,27 @@ pub async fn update_profile(
 ) -> AppResult<()> {
     state
         .db
-        .write_async(move |c| user_data::update_profile(c, id, &profile.name, profile.color.as_deref()))
+        .write_async(move |c| {
+            user_data::update_profile(c, id, &profile.name, profile.color.as_deref(), profile.image.as_deref())
+        })
         .await
+}
+
+/// Copies a user-chosen image into the app cache and returns the stored path,
+/// used as a custom profile avatar. Validates it is a real image first.
+#[tauri::command]
+pub async fn import_profile_image(state: State<'_, AppState>, path: String) -> AppResult<String> {
+    let src = crate::security::validate_local_file(&path, &["png", "jpg", "jpeg", "webp", "gif"])?;
+    let bytes = tokio::fs::read(&src).await?;
+    if bytes.is_empty() || bytes.len() > 8 * 1024 * 1024 {
+        return Err(AppError::Invalid("imagem inválida ou grande demais (máx. 8 MB)".into()));
+    }
+    let ext = crate::util::sniff_image_ext(&bytes);
+    let dir = state.cache_dir.join("avatars");
+    tokio::fs::create_dir_all(&dir).await?;
+    let dest = dir.join(format!("{}.{}", crate::util::stable_hash(&path), ext));
+    tokio::fs::write(&dest, &bytes).await?;
+    Ok(dest.to_string_lossy().into_owned())
 }
 
 #[tauri::command]

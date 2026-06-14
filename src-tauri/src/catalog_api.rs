@@ -66,6 +66,33 @@ pub struct ApiEpisode {
     pub extension: String,
     pub duration_secs: Option<i64>,
     pub plot: Option<String>,
+    pub cover: Option<String>,
+}
+
+/// Series-level metadata from `get_series_info` (the `info` object).
+#[derive(Debug, Clone, Default)]
+pub struct ApiSeriesExtra {
+    pub plot: Option<String>,
+    pub backdrop: Option<String>,
+    pub cast: Option<String>,
+    pub director: Option<String>,
+    pub genre: Option<String>,
+    pub trailer: Option<String>,
+}
+
+/// Full movie metadata from `get_vod_info`.
+#[derive(Debug, Clone, Default)]
+pub struct ApiVodInfo {
+    pub plot: Option<String>,
+    pub backdrop: Option<String>,
+    pub cast: Option<String>,
+    pub director: Option<String>,
+    pub genre: Option<String>,
+    pub trailer: Option<String>,
+    pub country: Option<String>,
+    pub duration_secs: Option<i64>,
+    pub rating: Option<String>,
+    pub year: Option<i64>,
 }
 
 impl<'a> CatalogApi<'a> {
@@ -250,11 +277,24 @@ impl<'a> CatalogApi<'a> {
         Ok(out)
     }
 
-    pub async fn series_episodes(&self, series_id: i64) -> AppResult<Vec<ApiEpisode>> {
+    /// Full series info: episodes (with thumbnails) plus series-level metadata
+    /// (cast/director/backdrop/trailer), from a single `get_series_info` call.
+    pub async fn series_info(&self, series_id: i64) -> AppResult<(Vec<ApiEpisode>, ApiSeriesExtra)> {
         let sid = series_id.to_string();
         let v = self
             .get_json(Some("get_series_info"), &[("series_id", &sid)])
             .await?;
+
+        let info = v.get("info").unwrap_or(&Value::Null);
+        let extra = ApiSeriesExtra {
+            plot: j_str(info, &["plot", "description"]).filter(|s| !s.is_empty()),
+            backdrop: first_backdrop(info),
+            cast: j_str(info, &["cast", "actors"]).filter(|s| !s.is_empty()),
+            director: j_str(info, &["director"]).filter(|s| !s.is_empty()),
+            genre: j_str(info, &["genre"]).filter(|s| !s.is_empty()),
+            trailer: j_str(info, &["youtube_trailer", "trailer"]).filter(|s| !s.is_empty()),
+        };
+
         let mut out = Vec::new();
         let episodes = v.get("episodes").unwrap_or(&Value::Null);
         let season_lists: Vec<&Value> = match episodes {
@@ -266,7 +306,7 @@ impl<'a> CatalogApi<'a> {
             let Some(eps) = season_list.as_array() else { continue };
             for ep in eps {
                 let Some(id) = j_i64(ep, &["id"]) else { continue };
-                let info = ep.get("info").unwrap_or(&Value::Null);
+                let ep_info = ep.get("info").unwrap_or(&Value::Null);
                 out.push(ApiEpisode {
                     id,
                     season: j_i64(ep, &["season"]).unwrap_or(1).max(0),
@@ -275,13 +315,43 @@ impl<'a> CatalogApi<'a> {
                     extension: j_str(ep, &["container_extension"])
                         .filter(|s| !s.is_empty())
                         .unwrap_or_else(|| "mp4".into()),
-                    duration_secs: parse_duration(ep).or_else(|| parse_duration(info)),
-                    plot: j_str(info, &["plot"]).filter(|s| !s.is_empty()),
+                    duration_secs: parse_duration(ep).or_else(|| parse_duration(ep_info)),
+                    plot: j_str(ep_info, &["plot"]).filter(|s| !s.is_empty()),
+                    cover: j_str(ep_info, &["movie_image", "cover_big", "cover"])
+                        .filter(|s| !s.is_empty()),
                 });
             }
         }
         out.sort_by_key(|e| (e.season, e.episode_num));
-        Ok(out)
+        Ok((out, extra))
+    }
+
+    /// Full movie info from `get_vod_info` (`info` + `movie_data`).
+    pub async fn vod_info(&self, vod_id: i64) -> AppResult<ApiVodInfo> {
+        let id = vod_id.to_string();
+        let v = self.get_json(Some("get_vod_info"), &[("vod_id", &id)]).await?;
+        let info = v.get("info").unwrap_or(&Value::Null);
+        let name = v
+            .get("movie_data")
+            .and_then(|m| j_str(m, &["name"]))
+            .unwrap_or_default();
+        Ok(ApiVodInfo {
+            plot: j_str(info, &["plot", "description"]).filter(|s| !s.is_empty()),
+            backdrop: first_backdrop(info),
+            cast: j_str(info, &["cast", "actors"]).filter(|s| !s.is_empty()),
+            director: j_str(info, &["director"]).filter(|s| !s.is_empty()),
+            genre: j_str(info, &["genre"]).filter(|s| !s.is_empty()),
+            trailer: j_str(info, &["youtube_trailer", "trailer"]).filter(|s| !s.is_empty()),
+            country: j_str(info, &["country"]).filter(|s| !s.is_empty()),
+            duration_secs: parse_duration(info),
+            rating: j_str(info, &["rating"]).filter(|s| !s.is_empty() && s != "0"),
+            year: j_i64(info, &["year"])
+                .or_else(|| crate::util::extract_year(&name))
+                .or_else(|| {
+                    j_str(info, &["releasedate", "releaseDate", "release_date"])
+                        .and_then(|d| d.get(..4).and_then(|y| y.parse().ok()))
+                }),
+        })
     }
 
     pub fn live_url(&self, stream_id: &str) -> String {
@@ -312,6 +382,19 @@ impl<'a> CatalogApi<'a> {
             .append_pair("username", &self.username)
             .append_pair("password", &self.password);
         u.to_string()
+    }
+}
+
+/// `backdrop_path` is usually an array of URLs, occasionally a bare string.
+fn first_backdrop(info: &Value) -> Option<String> {
+    match info.get("backdrop_path").or_else(|| info.get("backdrop")) {
+        Some(Value::Array(arr)) => arr
+            .iter()
+            .find_map(|x| x.as_str())
+            .filter(|s| !s.is_empty())
+            .map(|s| s.to_string()),
+        Some(Value::String(s)) if !s.is_empty() => Some(s.clone()),
+        _ => None,
     }
 }
 

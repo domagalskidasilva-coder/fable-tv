@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { PageHeader } from "../components/Chrome";
 import { PlaylistManager } from "../components/PlaylistManager";
 import { ProfileModal } from "../components/ProfileModal";
+import { Avatar } from "../lib/avatars";
 import { Button, Confirm, Spinner } from "../components/ui";
 import { deleteProfile, listProfiles, setActiveProfile } from "../lib/api";
 import { EASE, gsap, useGsap } from "../lib/gsap";
@@ -79,12 +80,13 @@ export default function Profiles({ onProfileChanged }: { onProfileChanged?: () =
                   onClick={() => switchTo(p.id)}
                   className="flex w-full flex-col items-center"
                 >
-                  <span
-                    className="mb-3 grid h-20 w-20 place-items-center rounded-2xl text-3xl font-black text-bg shadow-lg"
-                    style={{ background: p.color }}
-                  >
-                    {p.name.slice(0, 1).toUpperCase()}
-                  </span>
+                  <Avatar
+                    image={p.image}
+                    color={p.color}
+                    name={p.name}
+                    className="mb-3 h-20 w-20 rounded-2xl shadow-lg"
+                    textClassName="text-3xl"
+                  />
                   <span className="w-full truncate font-semibold text-ink">{p.name}</span>
                   <span className="mt-0.5 text-xs text-ink-dim">
                     {t("profiles.counts", { c: p.channelCount, m: p.movieCount, s: p.seriesCount })}

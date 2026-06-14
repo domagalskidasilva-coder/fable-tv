@@ -5,7 +5,7 @@ import { getMovieDetail, toggleFavorite } from "../lib/api";
 import { EASE, gsap, useGsap } from "../lib/gsap";
 import { useI18n } from "../lib/i18n";
 import type { MovieDetail as MovieDetailType } from "../lib/types";
-import { formatDuration, imageSrc, progressOf } from "../lib/utils";
+import { cx, formatDuration, imageSrc, progressOf } from "../lib/utils";
 
 export default function MovieDetail() {
   const { t } = useI18n();
@@ -58,14 +58,24 @@ export default function MovieDetail() {
   }
 
   const cover = imageSrc(movie.image);
+  const backdrop = imageSrc(movie.backdrop);
+  const genres = (movie.genre ?? "").split(/[,|/]/).map((g) => g.trim()).filter(Boolean);
   const progress = progressOf(movie.positionSecs, movie.watchedDurationSecs);
 
   return (
     <div ref={ref} className="relative h-full overflow-y-auto">
-      {cover && (
-        <div data-bg className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
-          <img src={cover} alt="" className="h-full w-full scale-110 object-cover opacity-25 blur-2xl" />
-          <div className="absolute inset-0 bg-gradient-to-t from-bg via-bg/85 to-bg/40" />
+      {(backdrop || cover) && (
+        <div data-bg className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[32rem] overflow-hidden">
+          <img
+            src={backdrop ?? cover ?? undefined}
+            alt=""
+            className={cx(
+              "h-full w-full scale-105 object-cover object-top",
+              backdrop ? "opacity-40" : "opacity-25 blur-2xl",
+            )}
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-bg via-bg/80 to-bg/30" />
+          <div className="absolute inset-0 bg-gradient-to-r from-bg/60 to-transparent" />
         </div>
       )}
 
@@ -95,15 +105,40 @@ export default function MovieDetail() {
             {movie.name}
           </h1>
           <p data-reveal className="mb-4 flex flex-wrap items-center gap-3 text-sm text-ink-dim">
-            {movie.year && <span>{movie.year}</span>}
+            {movie.year && <span className="tabular">{movie.year}</span>}
             {movie.durationSecs ? <span>{formatDuration(movie.durationSecs)}</span> : null}
             {movie.rating && <span className="text-gold">★ {movie.rating}</span>}
-            {movie.genre && <span className="rounded-full bg-surface px-2.5 py-0.5">{movie.genre}</span>}
+            {movie.country && <span>{movie.country}</span>}
           </p>
+          {genres.length > 0 && (
+            <div data-reveal className="mb-4 flex flex-wrap gap-2">
+              {genres.map((g) => (
+                <span key={g} className="rounded-full bg-surface px-3 py-1 text-xs font-medium text-ink-dim">
+                  {g}
+                </span>
+              ))}
+            </div>
+          )}
           {movie.plot && (
-            <p data-reveal className="mb-6 max-w-2xl leading-relaxed text-ink-dim">
+            <p data-reveal className="mb-4 max-w-2xl leading-relaxed text-ink-dim">
               {movie.plot}
             </p>
+          )}
+          {(movie.cast.length > 0 || movie.director) && (
+            <div data-reveal className="mb-6 space-y-1 text-sm text-ink-dim">
+              {movie.cast.length > 0 && (
+                <p>
+                  <span className="text-ink-faint">{t("detail.cast")}: </span>
+                  {movie.cast.slice(0, 6).join(", ")}
+                </p>
+              )}
+              {movie.director && (
+                <p>
+                  <span className="text-ink-faint">{t("detail.director")}: </span>
+                  {movie.director}
+                </p>
+              )}
+            </div>
           )}
 
           {progress !== null && (

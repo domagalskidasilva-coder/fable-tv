@@ -328,6 +328,7 @@ mod tests {
                         stream_url: "http://h/bab1.mp4".into(),
                         duration_secs: None,
                         plot: None,
+                        thumbnail_url: None,
                     }],
                 }],
                 &HashMap::new(),

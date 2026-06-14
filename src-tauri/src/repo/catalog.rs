@@ -50,6 +50,7 @@ pub struct EpisodeRec {
     pub stream_url: String,
     pub duration_secs: Option<i64>,
     pub plot: Option<String>,
+    pub thumbnail_url: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -233,14 +234,15 @@ pub fn upsert_series(
         )?;
         let mut ep_stmt = tx.prepare(
             "INSERT INTO episodes (series_id, source_id, season, episode_num, name,
-                search_text, stream_url, duration_secs, plot, created_at)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)
+                search_text, stream_url, duration_secs, plot, thumbnail_url, created_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)
              ON CONFLICT(series_id, season, episode_num) DO UPDATE SET
                name = excluded.name,
                search_text = excluded.search_text,
                stream_url = excluded.stream_url,
                duration_secs = excluded.duration_secs,
-               plot = COALESCE(excluded.plot, episodes.plot)",
+               plot = COALESCE(excluded.plot, episodes.plot),
+               thumbnail_url = COALESCE(excluded.thumbnail_url, episodes.thumbnail_url)",
         )?;
         for rec in recs {
             let category_id = rec.category_key.as_ref().and_then(|k| cat_map.get(k));
@@ -273,6 +275,7 @@ pub fn upsert_series(
                     ep.stream_url,
                     ep.duration_secs,
                     ep.plot,
+                    ep.thumbnail_url,
                     now_ts(),
                 ])?;
             }
@@ -555,10 +558,21 @@ pub fn list_categories(
 // Details
 // ---------------------------------------------------------------------------
 
+/// Splits a comma/pipe/slash-separated people or genre string into a list.
+pub fn split_list(s: Option<String>) -> Vec<String> {
+    s.map(|v| {
+        v.split([',', '|', '/'])
+            .map(|p| p.trim().to_string())
+            .filter(|p| !p.is_empty())
+            .collect()
+    })
+    .unwrap_or_default()
+}
+
 pub fn movie_detail(conn: &Connection, profile: i64, id: i64) -> AppResult<MovieDetail> {
     conn.query_row(
-        "SELECT m.id, m.source_id, m.name, COALESCE(m.logo_path, m.logo_url), m.year,
-                m.duration_secs, m.rating, m.plot, m.genre,
+        "SELECT m.id, m.source_id, m.name, COALESCE(m.logo_path, m.logo_url), m.backdrop_url, m.year,
+                m.duration_secs, m.rating, m.plot, m.genre, m.actors, m.director, m.trailer, m.country,
                 EXISTS(SELECT 1 FROM favorites f WHERE f.profile_id = ?2 AND f.item_type='movie' AND f.item_id = m.id),
                 h.position_secs, h.duration_secs
          FROM movies m
@@ -571,14 +585,19 @@ pub fn movie_detail(conn: &Connection, profile: i64, id: i64) -> AppResult<Movie
                 source_id: r.get(1)?,
                 name: r.get(2)?,
                 image: r.get(3)?,
-                year: r.get(4)?,
-                duration_secs: r.get(5)?,
-                rating: r.get(6)?,
-                plot: r.get(7)?,
-                genre: r.get(8)?,
-                favorite: r.get::<_, i64>(9)? != 0,
-                position_secs: r.get(10)?,
-                watched_duration_secs: r.get(11)?,
+                backdrop: r.get(4)?,
+                year: r.get(5)?,
+                duration_secs: r.get(6)?,
+                rating: r.get(7)?,
+                plot: r.get(8)?,
+                genre: r.get(9)?,
+                cast: split_list(r.get(10)?),
+                director: r.get(11)?,
+                trailer: r.get(12)?,
+                country: r.get(13)?,
+                favorite: r.get::<_, i64>(14)? != 0,
+                position_secs: r.get(15)?,
+                watched_duration_secs: r.get(16)?,
             })
         },
     )
@@ -589,8 +608,8 @@ pub fn movie_detail(conn: &Connection, profile: i64, id: i64) -> AppResult<Movie
 pub fn series_detail(conn: &Connection, profile: i64, id: i64) -> AppResult<SeriesDetail> {
     let head = conn
         .query_row(
-            "SELECT se.id, se.source_id, se.name, COALESCE(se.cover_path, se.cover_url),
-                    se.plot, se.year, se.rating, se.genre,
+            "SELECT se.id, se.source_id, se.name, COALESCE(se.cover_path, se.cover_url), se.backdrop_url,
+                    se.plot, se.year, se.rating, se.genre, se.actors, se.director, se.trailer,
                     EXISTS(SELECT 1 FROM favorites f WHERE f.profile_id = ?2 AND f.item_type='series' AND f.item_id = se.id)
              FROM series se WHERE se.id = ?1",
             params![id, profile],
@@ -600,11 +619,15 @@ pub fn series_detail(conn: &Connection, profile: i64, id: i64) -> AppResult<Seri
                     source_id: r.get(1)?,
                     name: r.get(2)?,
                     cover: r.get(3)?,
-                    plot: r.get(4)?,
-                    year: r.get(5)?,
-                    rating: r.get(6)?,
-                    genre: r.get(7)?,
-                    favorite: r.get::<_, i64>(8)? != 0,
+                    backdrop: r.get(4)?,
+                    plot: r.get(5)?,
+                    year: r.get(6)?,
+                    rating: r.get(7)?,
+                    genre: r.get(8)?,
+                    cast: split_list(r.get(9)?),
+                    director: r.get(10)?,
+                    trailer: r.get(11)?,
+                    favorite: r.get::<_, i64>(12)? != 0,
                     seasons: Vec::new(),
                 })
             },
@@ -614,6 +637,7 @@ pub fn series_detail(conn: &Connection, profile: i64, id: i64) -> AppResult<Seri
 
     let mut stmt = conn.prepare(
         "SELECT e.id, e.series_id, e.season, e.episode_num, e.name, e.duration_secs, e.plot,
+                e.thumbnail_url,
                 h.position_secs, h.duration_secs, COALESCE(h.completed, 0),
                 EXISTS(SELECT 1 FROM favorites f WHERE f.profile_id = ?2 AND f.item_type='episode' AND f.item_id = e.id)
          FROM episodes e
@@ -631,10 +655,11 @@ pub fn series_detail(conn: &Connection, profile: i64, id: i64) -> AppResult<Seri
                 name: r.get(4)?,
                 duration_secs: r.get(5)?,
                 plot: r.get(6)?,
-                position_secs: r.get(7)?,
-                watched_duration_secs: r.get(8)?,
-                completed: r.get::<_, i64>(9)? != 0,
-                favorite: r.get::<_, i64>(10)? != 0,
+                thumbnail: r.get(7)?,
+                position_secs: r.get(8)?,
+                watched_duration_secs: r.get(9)?,
+                completed: r.get::<_, i64>(10)? != 0,
+                favorite: r.get::<_, i64>(11)? != 0,
             })
         })?
         .collect::<Result<Vec<_>, _>>()?;
@@ -1000,9 +1025,9 @@ mod tests {
             category_key: None,
             episodes_synced: true,
             episodes: vec![
-                EpisodeRec { season: 1, episode_num: 2, name: "Dark S01E02".into(), stream_url: "http://h/d2.mp4".into(), duration_secs: None, plot: None },
-                EpisodeRec { season: 1, episode_num: 1, name: "Dark S01E01".into(), stream_url: "http://h/d1.mp4".into(), duration_secs: None, plot: None },
-                EpisodeRec { season: 2, episode_num: 1, name: "Dark S02E01".into(), stream_url: "http://h/d3.mp4".into(), duration_secs: None, plot: None },
+                EpisodeRec { season: 1, episode_num: 2, name: "Dark S01E02".into(), stream_url: "http://h/d2.mp4".into(), duration_secs: None, plot: None, thumbnail_url: None },
+                EpisodeRec { season: 1, episode_num: 1, name: "Dark S01E01".into(), stream_url: "http://h/d1.mp4".into(), duration_secs: None, plot: None, thumbnail_url: None },
+                EpisodeRec { season: 2, episode_num: 1, name: "Dark S02E01".into(), stream_url: "http://h/d3.mp4".into(), duration_secs: None, plot: None, thumbnail_url: None },
             ],
         };
         db.write(move |c| upsert_series(c, sid, 1, &[rec], &HashMap::new())).unwrap();

@@ -98,9 +98,35 @@ impl Db {
         if version < 2 {
             conn.execute_batch(MIGRATION_V2)?;
         }
+        if version < 3 {
+            conn.execute_batch(MIGRATION_V3)?;
+        }
         Ok(())
     }
 }
+
+/// v3: profile avatars + richer content metadata (episode thumbnails, plus
+/// backdrop/cast/director/trailer for movies and series, fetched on demand).
+const MIGRATION_V3: &str = r#"
+BEGIN;
+ALTER TABLE profiles ADD COLUMN image TEXT;
+ALTER TABLE episodes ADD COLUMN thumbnail_url TEXT;
+ALTER TABLE movies ADD COLUMN backdrop_url TEXT;
+ALTER TABLE movies ADD COLUMN actors TEXT;
+ALTER TABLE movies ADD COLUMN director TEXT;
+ALTER TABLE movies ADD COLUMN trailer TEXT;
+ALTER TABLE movies ADD COLUMN country TEXT;
+ALTER TABLE movies ADD COLUMN info_synced INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE series ADD COLUMN backdrop_url TEXT;
+ALTER TABLE series ADD COLUMN actors TEXT;
+ALTER TABLE series ADD COLUMN director TEXT;
+ALTER TABLE series ADD COLUMN trailer TEXT;
+-- Re-enrich existing series on next open so they pick up episode thumbnails
+-- and cast/director/backdrop from the richer get_series_info parsing.
+UPDATE series SET episodes_synced = 0;
+PRAGMA user_version = 3;
+COMMIT;
+"#;
 
 /// v2: profiles become isolated libraries. A profile owns its playlists
 /// (sources); the active profile scopes the whole catalog. Non-destructive:
@@ -323,23 +349,30 @@ mod tests {
         let version: i64 = db
             .read(|c| Ok(c.query_row("PRAGMA user_version", [], |r| r.get(0))?))
             .unwrap();
-        assert_eq!(version, 2);
+        assert_eq!(version, 3);
 
         // v2: a profile carries an avatar color, and sources are bound to it.
         let color: String = db
             .read(|c| Ok(c.query_row("SELECT color FROM profiles WHERE id = 1", [], |r| r.get(0))?))
             .unwrap();
         assert_eq!(color, "#e8b65a");
-        let has_profile_col: i64 = db
-            .read(|c| {
+        let count_col = |table: &'static str, col: &'static str| -> i64 {
+            db.read(move |c| {
                 Ok(c.query_row(
-                    "SELECT COUNT(*) FROM pragma_table_info('sources') WHERE name = 'profile_id'",
+                    &format!("SELECT COUNT(*) FROM pragma_table_info('{table}') WHERE name = '{col}'"),
                     [],
                     |r| r.get(0),
                 )?)
             })
-            .unwrap();
-        assert_eq!(has_profile_col, 1);
+            .unwrap()
+        };
+        assert_eq!(count_col("sources", "profile_id"), 1);
+        // v3: avatar + richer metadata columns exist.
+        assert_eq!(count_col("profiles", "image"), 1);
+        assert_eq!(count_col("episodes", "thumbnail_url"), 1);
+        assert_eq!(count_col("movies", "backdrop_url"), 1);
+        assert_eq!(count_col("movies", "actors"), 1);
+        assert_eq!(count_col("series", "director"), 1);
     }
 
     #[test]

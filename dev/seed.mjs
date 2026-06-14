@@ -29,16 +29,24 @@ const MP4 = (f) => `https://commondatastorage.googleapis.com/gtv-videos-bucket/s
 // Give the default profile a name + color, and add a second, empty profile
 // so the "Who's watching?" gate appears and isolation is visible.
 try {
-  db.exec("UPDATE profiles SET name = 'Sala', color = '#e8b65a' WHERE id = 1");
+  db.exec("UPDATE profiles SET name = 'Sala', color = '#e8b65a', image = 'preset:marquee' WHERE id = 1");
   db.prepare(
-    "INSERT OR IGNORE INTO profiles (name, color, created_at) VALUES (?, ?, ?)",
-  ).run("Crianças", "#5a8fe0", now);
+    "INSERT OR IGNORE INTO profiles (name, color, image, created_at) VALUES (?, ?, ?, ?)",
+  ).run("Crianças", "#5a8fe0", "preset:lagoon", now);
 } catch {
-  // older schema without color — ignore
+  // older schema — ignore
 }
 
 // Fresh start for the demo source (bound to profile 1).
 db.exec("DELETE FROM sources WHERE name = 'Demo (amostra)'");
+
+// Existing (real) series should re-enrich on next open so they pick up the
+// new episode thumbnails + cast/director/backdrop.
+try {
+  db.exec("UPDATE series SET episodes_synced = 0; UPDATE movies SET info_synced = 0;");
+} catch {
+  // pre-v3 schema — ignore
+}
 const src = db
   .prepare(
     `INSERT INTO sources (name, kind, url, sync_channels, sync_movies, sync_series, sync_epg, sync_logos, created_at, last_sync_at, last_sync_status)
@@ -91,9 +99,11 @@ const movies = [
   ["Bullrun: A Corrida", 2014, "Aventura", "mv11", "WeAreGoingOnBullrun.mp4", "A energia de uma corrida pelas estradas."],
   ["Por Uma Nota Só", 2014, "Comédia", "mv12", "WhatCarCanYouGetForAGrand.mp4", "O que dá pra comprar com pouco dinheiro?"],
 ];
+const backdrop = (seed) => `https://picsum.photos/seed/${seed}bd/1280/720`;
+const CAST = "Helena Prado, Marcos Vinícius, Ana Beatriz, Rafael Lopes";
 const insMv = db.prepare(
-  `INSERT INTO movies (source_id, category_id, name, search_text, logo_url, stream_url, year, duration_secs, rating, plot, genre, sync_token, created_at)
-   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+  `INSERT INTO movies (source_id, category_id, name, search_text, logo_url, stream_url, year, duration_secs, rating, plot, genre, backdrop_url, actors, director, country, info_synced, sync_token, created_at)
+   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)`,
 );
 const movieIds = movies.map(([name, year, genre, seed, file, plot], i) => {
   const r = insMv.run(
@@ -108,6 +118,10 @@ const movieIds = movies.map(([name, year, genre, seed, file, plot], i) => {
     (7 + (i % 3)).toString() + ".5",
     plot,
     genre,
+    backdrop(seed),
+    CAST,
+    "Cláudia Mendes",
+    "Brasil",
     now,
     now - i * 3600,
   );
@@ -134,12 +148,12 @@ const series = [
   ]],
 ];
 const insSe = db.prepare(
-  `INSERT INTO series (source_id, category_id, external_id, name, search_text, cover_url, plot, year, rating, genre, episodes_synced, sync_token, created_at)
-   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)`,
+  `INSERT INTO series (source_id, category_id, external_id, name, search_text, cover_url, plot, year, rating, genre, backdrop_url, actors, director, episodes_synced, sync_token, created_at)
+   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)`,
 );
 const insEp = db.prepare(
-  `INSERT INTO episodes (series_id, source_id, season, episode_num, name, search_text, stream_url, duration_secs, created_at)
-   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+  `INSERT INTO episodes (series_id, source_id, season, episode_num, name, search_text, stream_url, duration_secs, plot, thumbnail_url, created_at)
+   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 );
 const episodeIds = [];
 series.forEach(([name, year, genre, seed, plot, eps], i) => {
@@ -154,13 +168,18 @@ series.forEach(([name, year, genre, seed, plot, eps], i) => {
     year,
     "8." + i,
     genre,
+    backdrop(seed),
+    CAST,
+    "Cláudia Mendes",
     now,
     now - i * 7200,
   );
   const seriesId = Number(r.lastInsertRowid);
   eps.forEach(([season, num, file]) => {
     const epName = `${name} S${String(season).padStart(2, "0")}E${String(num).padStart(2, "0")}`;
-    const er = insEp.run(seriesId, sourceId, season, num, epName, norm(epName), MP4(file), 600, now);
+    const epPlot = `${name}: temporada ${season}, episódio ${num}. Mais um capítulo da jornada.`;
+    const epThumb = `https://picsum.photos/seed/${seed}e${season}x${num}/320/180`;
+    const er = insEp.run(seriesId, sourceId, season, num, epName, norm(epName), MP4(file), 600, epPlot, epThumb, now);
     episodeIds.push(Number(er.lastInsertRowid));
   });
 });

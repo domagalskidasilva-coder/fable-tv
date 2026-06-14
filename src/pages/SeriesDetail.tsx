@@ -80,6 +80,8 @@ export default function SeriesDetail() {
   }
 
   const cover = imageSrc(series.cover);
+  const backdrop = imageSrc(series.backdrop);
+  const genres = (series.genre ?? "").split(/[,|/]/).map((g) => g.trim()).filter(Boolean);
   const current = series.seasons.find((s) => s.season === season) ?? series.seasons[0];
   const firstUnwatched =
     series.seasons.flatMap((s) => s.episodes).find((e) => !e.completed) ??
@@ -87,10 +89,18 @@ export default function SeriesDetail() {
 
   return (
     <div ref={headRef} className="relative h-full overflow-y-auto">
-      {cover && (
-        <div data-bg className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[28rem] overflow-hidden">
-          <img src={cover} alt="" className="h-full w-full scale-110 object-cover opacity-25 blur-xl" />
-          <div className="absolute inset-0 bg-gradient-to-t from-bg via-bg/75 to-bg/30" />
+      {(backdrop || cover) && (
+        <div data-bg className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[30rem] overflow-hidden">
+          <img
+            src={backdrop ?? cover ?? undefined}
+            alt=""
+            className={cx(
+              "h-full w-full scale-105 object-cover object-top",
+              backdrop ? "opacity-40" : "opacity-25 blur-xl",
+            )}
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-bg via-bg/80 to-bg/30" />
+          <div className="absolute inset-0 bg-gradient-to-r from-bg/60 to-transparent" />
         </div>
       )}
 
@@ -121,14 +131,39 @@ export default function SeriesDetail() {
               {series.name}
             </h1>
             <p data-reveal className="mb-3 flex flex-wrap items-center gap-3 text-sm text-ink-dim">
-              {series.year && <span>{series.year}</span>}
+              {series.year && <span className="tabular">{series.year}</span>}
               {series.rating && <span className="text-gold">★ {series.rating}</span>}
-              {series.genre && <span className="rounded-full bg-surface px-2.5 py-0.5">{series.genre}</span>}
+              <span>{t("series.episodes", { n: series.seasons.reduce((a, s) => a + s.episodes.length, 0) })}</span>
             </p>
+            {genres.length > 0 && (
+              <div data-reveal className="mb-4 flex flex-wrap gap-2">
+                {genres.map((g) => (
+                  <span key={g} className="rounded-full bg-surface px-3 py-1 text-xs font-medium text-ink-dim">
+                    {g}
+                  </span>
+                ))}
+              </div>
+            )}
             {series.plot && (
-              <p data-reveal className="mb-5 max-w-2xl text-sm leading-relaxed text-ink-dim">
+              <p data-reveal className="mb-4 max-w-2xl text-sm leading-relaxed text-ink-dim">
                 {series.plot}
               </p>
+            )}
+            {(series.cast.length > 0 || series.director) && (
+              <div data-reveal className="mb-5 space-y-1 text-sm text-ink-dim">
+                {series.cast.length > 0 && (
+                  <p>
+                    <span className="text-ink-faint">{t("detail.cast")}: </span>
+                    {series.cast.slice(0, 6).join(", ")}
+                  </p>
+                )}
+                {series.director && (
+                  <p>
+                    <span className="text-ink-faint">{t("detail.director")}: </span>
+                    {series.director}
+                  </p>
+                )}
+              </div>
             )}
             <div data-reveal className="flex flex-wrap gap-3">
               {firstUnwatched && (
@@ -179,34 +214,61 @@ export default function SeriesDetail() {
           )}
         </div>
 
-        <div ref={listRef} className="flex flex-col gap-2 pb-10">
+        <div ref={listRef} className="flex flex-col gap-2.5 pb-10">
           {current?.episodes.map((ep) => {
             const progress = progressOf(ep.positionSecs, ep.watchedDurationSecs);
+            const thumb = imageSrc(ep.thumbnail) ?? cover;
             return (
               <button
                 key={ep.id}
                 data-nav
                 onClick={() => navigate(`/player/episode/${ep.id}`)}
-                className="group flex items-center gap-4 rounded-2xl border border-line bg-surface/80 p-3 text-left transition-colors hover:bg-surface-hover"
+                className="group flex items-stretch gap-4 rounded-xl border border-line bg-surface/70 p-3 text-left transition-colors hover:bg-surface-hover"
               >
-                <span className="w-8 shrink-0 text-center text-lg font-bold text-ink-faint">
+                <span className="hidden w-6 shrink-0 items-center justify-center self-center text-lg font-bold text-ink-faint sm:flex">
                   {ep.episodeNum}
                 </span>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate font-medium text-ink">{ep.name}</p>
-                  <p className="flex gap-3 text-xs text-ink-dim">
-                    {ep.durationSecs ? <span>{formatDuration(ep.durationSecs)}</span> : null}
-                    {ep.completed && <span className="text-ok">{t("series.watched")}</span>}
-                  </p>
+                <div className="relative aspect-video w-40 shrink-0 overflow-hidden rounded-md bg-surface-2">
+                  {thumb ? (
+                    <img src={thumb} alt="" loading="lazy" className="h-full w-full object-cover" />
+                  ) : (
+                    <div className="grid h-full w-full place-items-center text-ink-faint">
+                      <PlayIcon />
+                    </div>
+                  )}
+                  <div className="absolute inset-0 grid place-items-center bg-black/40 opacity-0 transition-opacity group-hover:opacity-100">
+                    <span className="grid h-10 w-10 place-items-center rounded-full bg-white text-black shadow-lg">
+                      <PlayIcon size={16} />
+                    </span>
+                  </div>
+                  {ep.completed && (
+                    <span className="absolute right-1.5 top-1.5 grid h-5 w-5 place-items-center rounded-full bg-ok text-bg">
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M5 13l4 4L19 7" />
+                      </svg>
+                    </span>
+                  )}
                   {progress !== null && !ep.completed && (
-                    <div className="mt-1.5 h-1 max-w-xs overflow-hidden rounded-full bg-line">
+                    <div className="absolute inset-x-0 bottom-0 h-1 bg-black/50">
                       <div className="h-full bg-brand" style={{ width: `${Math.round(progress * 100)}%` }} />
                     </div>
                   )}
                 </div>
-                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-accent-soft text-accent-strong opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
-                  <PlayIcon size={16} />
-                </span>
+                <div className="min-w-0 flex-1 self-center">
+                  <div className="mb-1 flex items-baseline justify-between gap-2">
+                    <p className="truncate font-semibold text-ink">
+                      <span className="text-ink-faint sm:hidden">{ep.episodeNum}. </span>
+                      {ep.name}
+                    </p>
+                    {ep.durationSecs ? (
+                      <span className="shrink-0 text-xs text-ink-dim">{formatDuration(ep.durationSecs)}</span>
+                    ) : null}
+                  </div>
+                  {ep.plot && (
+                    <p className="line-clamp-2 text-xs leading-relaxed text-ink-dim">{ep.plot}</p>
+                  )}
+                  {ep.completed && <span className="text-xs text-ok">{t("series.watched")}</span>}
+                </div>
               </button>
             );
           })}
