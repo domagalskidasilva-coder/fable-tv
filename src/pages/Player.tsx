@@ -27,6 +27,7 @@ export default function Player() {
 
   const [stream, setStream] = useState<StreamInfo | null>(null);
   const [status, setStatus] = useState<Status>("loading");
+  const [buffering, setBuffering] = useState(false);
   const [errorDetail, setErrorDetail] = useState<string | null>(null);
   const [controls, setControls] = useState(true);
   const [paused, setPaused] = useState(false);
@@ -117,17 +118,32 @@ export default function Player() {
     let hls: Hls | null = null;
     const useHls = stream.kind === "hls" && Hls.isSupported();
     if (useHls) {
-      hls = new Hls({ maxBufferLength: 30, backBufferLength: 30 });
+      hls = new Hls({ maxBufferLength: 30, backBufferLength: 30, enableWorker: true });
       hlsRef.current = hls;
+      let recover = 0;
+      // Reset the recovery budget once the stream is flowing again.
+      hls.on(Hls.Events.FRAG_BUFFERED, () => {
+        recover = 0;
+      });
+      hls.on(Hls.Events.ERROR, (_evt, data) => {
+        if (!data.fatal) return;
+        // Live streams hiccup — try to recover transient errors before failing.
+        if (data.type === Hls.ErrorTypes.NETWORK_ERROR && recover < 4) {
+          recover++;
+          hls?.startLoad();
+          return;
+        }
+        if (data.type === Hls.ErrorTypes.MEDIA_ERROR && recover < 4) {
+          recover++;
+          hls?.recoverMediaError();
+          return;
+        }
+        setStatus("error");
+        setErrorDetail(`${data.type}: ${data.details}`);
+        hls?.destroy();
+      });
       hls.loadSource(stream.url);
       hls.attachMedia(video);
-      hls.on(Hls.Events.ERROR, (_evt, data) => {
-        if (data.fatal) {
-          setStatus("error");
-          setErrorDetail(`${data.type}: ${data.details}`);
-          hls?.destroy();
-        }
-      });
     } else {
       video.src = stream.url;
     }
@@ -141,7 +157,9 @@ export default function Player() {
     const onPlaying = () => {
       setStatus("playing");
       setPaused(false);
+      setBuffering(false);
     };
+    const onWaiting = () => setBuffering(true);
     const onPause = () => setPaused(true);
     const onTime = () => {
       setTime(video.currentTime);
@@ -160,6 +178,7 @@ export default function Player() {
 
     video.addEventListener("loadedmetadata", onLoaded);
     video.addEventListener("playing", onPlaying);
+    video.addEventListener("waiting", onWaiting);
     video.addEventListener("pause", onPause);
     video.addEventListener("timeupdate", onTime);
     video.addEventListener("error", onError);
@@ -176,6 +195,7 @@ export default function Player() {
       clearInterval(interval);
       video.removeEventListener("loadedmetadata", onLoaded);
       video.removeEventListener("playing", onPlaying);
+      video.removeEventListener("waiting", onWaiting);
       video.removeEventListener("pause", onPause);
       video.removeEventListener("timeupdate", onTime);
       video.removeEventListener("error", onError);
@@ -303,6 +323,13 @@ export default function Player() {
           <Spinner className="h-12 w-12" />
           <p className="text-sm font-medium text-white/80">{t("player.loading")}</p>
           {stream && <p className="text-lg font-bold text-white">{stream.name}</p>}
+        </div>
+      )}
+
+      {/* Buffering indicator (stream stalled mid-playback) */}
+      {status === "playing" && buffering && (
+        <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+          <Spinner className="h-12 w-12" />
         </div>
       )}
 

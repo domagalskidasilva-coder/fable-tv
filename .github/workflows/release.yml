@@ -69,15 +69,25 @@ jobs:
         with:
           tagName: ${{ env.TAG }}
           releaseName: "Fable TV ${{ env.TAG }}"
-          releaseBody: "Baixe o instalador da sua plataforma nos assets abaixo."
+          releaseBody: |
+            Baixe o instalador da sua plataforma nos assets abaixo.
+
+            ### Como instalar
+            - **Windows** (`.exe`): o app ainda não tem assinatura paga, então o
+              Windows mostra "Windows protegeu seu PC" — clique em **Mais informações → Executar assim mesmo**.
+            - **Linux** (`.AppImage`): `chmod +x Fable*.AppImage && ./Fable*.AppImage`.
+              Se pedir FUSE: `sudo apt install libfuse2`.
+            - **Linux** (`.deb`): `sudo apt install ./Fable*.deb` (puxa o webkit2gtk automaticamente).
+            - **Android** (`.apk`): ative **"Instalar apps desconhecidos"** para o seu
+              navegador/gerenciador de arquivos e abra o APK.
           releaseDraft: false
           prerelease: false
           args: ${{ matrix.args }}
 
   # ---------------------------------------------------------------------------
-  # Android (.apk). Gera um APK *debug* — já é assinado com a chave de debug do
-  # Android e instala normalmente para testes. Um APK de release assinado exige
-  # uma keystore própria + um passo de assinatura (veja RELEASING.md).
+  # Android (.apk): build de RELEASE (otimizado/stripped) assinado com uma
+  # keystore gerada no CI -> APK pequeno (~30-40 MB) e instalável. Um debug
+  # build aqui gerava ~730 MB com símbolos e não instalava.
   # ---------------------------------------------------------------------------
   android:
     runs-on: ubuntu-22.04
@@ -115,19 +125,44 @@ jobs:
       - name: Inicializar projeto Android
         run: npx tauri android init --ci
 
-      - name: Compilar APK (debug — instalável sem secrets)
-        run: npx tauri android build --apk --debug
+      - name: Gerar keystore + configurar assinatura
+        run: |
+          keytool -genkeypair -v -keystore "$RUNNER_TEMP/fable.jks" \
+            -alias fable -keyalg RSA -keysize 2048 -validity 3650 \
+            -storepass fabletv -keypass fabletv \
+            -dname "CN=Fable TV, O=Fable TV, C=BR"
+          {
+            echo "storeFile=$RUNNER_TEMP/fable.jks"
+            echo "storePassword=fabletv"
+            echo "keyAlias=fable"
+            echo "password=fabletv"
+          } > src-tauri/gen/android/keystore.properties
 
-      - name: Coletar APKs
-        id: apks
+      - name: Compilar APK release
+        run: npx tauri android build --apk
+
+      - name: Garantir APK assinado + coletar
         run: |
           mkdir -p dist-apk
-          find src-tauri/gen/android -path "*outputs/apk*" -name "*.apk" -exec cp {} dist-apk/ \;
+          APK=$(find src-tauri/gen/android -path "*outputs/apk*release*" -name "*.apk" | grep -i universal | head -1)
+          [ -z "$APK" ] && APK=$(find src-tauri/gen/android -path "*outputs/apk*release*" -name "*.apk" | head -1)
+          echo "APK de release: $APK"
+          BT=$(ls "$ANDROID_SDK_ROOT/build-tools" | sort -V | tail -1)
+          TOOLS="$ANDROID_SDK_ROOT/build-tools/$BT"
+          if echo "$APK" | grep -qi "unsigned"; then
+            "$TOOLS/zipalign" -f -p 4 "$APK" /tmp/aligned.apk
+            "$TOOLS/apksigner" sign --ks "$RUNNER_TEMP/fable.jks" \
+              --ks-pass pass:fabletv --key-pass pass:fabletv \
+              --out dist-apk/FableTV-Android.apk /tmp/aligned.apk
+          else
+            cp "$APK" dist-apk/FableTV-Android.apk
+          fi
+          "$TOOLS/apksigner" verify --verbose dist-apk/FableTV-Android.apk
           ls -la dist-apk
 
       - name: Publicar APK na Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ env.TAG }}
-          files: dist-apk/*.apk
+          files: dist-apk/FableTV-Android.apk
           fail_on_unmatched_files: false

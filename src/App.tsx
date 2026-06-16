@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { HashRouter, Route, Routes, useLocation } from "react-router-dom";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 import { Layout } from "./components/Layout";
 import { getSettings, listProfiles } from "./lib/api";
 import { I18nProvider, type Language } from "./lib/i18n";
@@ -121,18 +122,20 @@ export default function App() {
   }, [refreshSettings]);
 
   return (
-    <I18nProvider lang={lang}>
-      <HashRouter>
-        {phase === "loading" ? (
-          <div className="grid h-screen place-items-center">
-            <Spinner />
-          </div>
-        ) : phase === "gate" ? (
-          <WhoIsWatching onEnter={enterApp} />
-        ) : (
-          <Shell onSettingsChanged={refreshSettings} onSwitchProfile={() => setPhase("gate")} />
-        )}
-      </HashRouter>
-    </I18nProvider>
+    <ErrorBoundary>
+      <I18nProvider lang={lang}>
+        <HashRouter>
+          {phase === "loading" ? (
+            <div className="grid h-screen place-items-center">
+              <Spinner />
+            </div>
+          ) : phase === "gate" ? (
+            <WhoIsWatching onEnter={enterApp} />
+          ) : (
+            <Shell onSettingsChanged={refreshSettings} onSwitchProfile={() => setPhase("gate")} />
+          )}
+        </HashRouter>
+      </I18nProvider>
+    </ErrorBoundary>
   );
 }
