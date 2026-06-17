@@ -17,14 +17,14 @@ pub fn defaults() -> Vec<(&'static str, String)> {
         ("player_volume", "1".to_string()),
         ("player_remember_position", "true".to_string()),
         ("history_enabled", "true".to_string()),
+        ("block_adult_content", "false".to_string()),
         ("active_profile", "1".to_string()),
         ("auto_sync_on_start", "false".to_string()),
     ]
 }
 
 pub fn ensure_defaults(conn: &Connection) -> AppResult<()> {
-    let mut stmt =
-        conn.prepare("INSERT OR IGNORE INTO settings (key, value) VALUES (?1, ?2)")?;
+    let mut stmt = conn.prepare("INSERT OR IGNORE INTO settings (key, value) VALUES (?1, ?2)")?;
     for (k, v) in defaults() {
         stmt.execute(params![k, v])?;
     }
@@ -44,13 +44,20 @@ pub fn get_all(conn: &Connection) -> AppResult<Settings> {
 
 pub fn get(conn: &Connection, key: &str) -> AppResult<Option<String>> {
     Ok(conn
-        .query_row("SELECT value FROM settings WHERE key = ?1", params![key], |r| r.get(0))
+        .query_row(
+            "SELECT value FROM settings WHERE key = ?1",
+            params![key],
+            |r| r.get(0),
+        )
         .optional()?)
 }
 
 #[allow(dead_code)] // handy helper, currently exercised by tests
 pub fn get_or(conn: &Connection, key: &str, fallback: &str) -> String {
-    get(conn, key).ok().flatten().unwrap_or_else(|| fallback.to_string())
+    get(conn, key)
+        .ok()
+        .flatten()
+        .unwrap_or_else(|| fallback.to_string())
 }
 
 pub fn get_bool(conn: &Connection, key: &str, fallback: bool) -> bool {
@@ -69,11 +76,16 @@ pub fn get_i64(conn: &Connection, key: &str, fallback: i64) -> i64 {
 }
 
 pub fn set(conn: &Connection, key: &str, value: &str) -> AppResult<()> {
-    if key.is_empty() || key.len() > 64 || !key.chars().all(|c| c.is_ascii_alphanumeric() || c == '_') {
+    if key.is_empty()
+        || key.len() > 64
+        || !key.chars().all(|c| c.is_ascii_alphanumeric() || c == '_')
+    {
         return Err(AppError::Invalid("chave de configuração inválida".into()));
     }
     if value.len() > 10_000 {
-        return Err(AppError::Invalid("valor de configuração longo demais".into()));
+        return Err(AppError::Invalid(
+            "valor de configuração longo demais".into(),
+        ));
     }
     conn.execute(
         "INSERT INTO settings (key, value) VALUES (?1, ?2)
@@ -99,6 +111,10 @@ mod tests {
         let all = db.read(|c| get_all(c)).unwrap();
         assert_eq!(all.get("language").map(String::as_str), Some("pt-BR"));
         assert_eq!(all.get("theme").map(String::as_str), Some("dark"));
+        assert_eq!(
+            all.get("block_adult_content").map(String::as_str),
+            Some("false")
+        );
 
         db.write(|c| set(c, "theme", "light")).unwrap();
         db.write(|c| ensure_defaults(c)).unwrap(); // must not reset

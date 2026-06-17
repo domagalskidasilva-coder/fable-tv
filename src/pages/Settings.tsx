@@ -185,6 +185,12 @@ export default function Settings({
             label={t("settings.lightweight")}
             hint={t("settings.lightweightHint")}
           />
+          <Toggle
+            checked={bool("block_adult_content")}
+            onChange={(v) => update("block_adult_content", String(v))}
+            label={t("settings.blockAdultContent")}
+            hint={t("settings.blockAdultContentHint")}
+          />
           <Field label={t("settings.epgDays")}>
             <input
               data-nav

@@ -175,15 +175,13 @@ pub fn list_active_jobs(state: State<'_, AppState>) -> Vec<ActiveJob> {
 // ---------------------------------------------------------------------------
 
 #[tauri::command]
-pub async fn list_categories(
-    state: State<'_, AppState>,
-    kind: String,
-) -> AppResult<Vec<Category>> {
+pub async fn list_categories(state: State<'_, AppState>, kind: String) -> AppResult<Vec<Category>> {
     state
         .db
         .read_async(move |c| {
             let profile = settings::active_profile(c);
-            catalog::list_categories(c, &kind, Some(profile))
+            let block_adult = settings::get_bool(c, "block_adult_content", false);
+            catalog::list_categories_filtered(c, &kind, Some(profile), block_adult)
         })
         .await
 }
@@ -197,8 +195,9 @@ pub async fn list_channels(
         .db
         .read_async(move |c| {
             let profile = settings::active_profile(c);
+            let block_adult = settings::get_bool(c, "block_adult_content", false);
             filter.profile_id = Some(profile);
-            catalog::list_channels(c, profile, &filter)
+            catalog::list_channels_filtered(c, profile, &filter, block_adult)
         })
         .await
 }
@@ -212,8 +211,9 @@ pub async fn list_movies(
         .db
         .read_async(move |c| {
             let profile = settings::active_profile(c);
+            let block_adult = settings::get_bool(c, "block_adult_content", false);
             filter.profile_id = Some(profile);
-            catalog::list_movies(c, profile, &filter)
+            catalog::list_movies_filtered(c, profile, &filter, block_adult)
         })
         .await
 }
@@ -227,8 +227,9 @@ pub async fn list_series(
         .db
         .read_async(move |c| {
             let profile = settings::active_profile(c);
+            let block_adult = settings::get_bool(c, "block_adult_content", false);
             filter.profile_id = Some(profile);
-            catalog::list_series(c, profile, &filter)
+            catalog::list_series_filtered(c, profile, &filter, block_adult)
         })
         .await
 }
@@ -240,6 +241,11 @@ pub async fn get_movie_detail(state: State<'_, AppState>, id: i64) -> AppResult<
     let synced: bool = state
         .db
         .read_async(move |c| {
+            if settings::get_bool(c, "block_adult_content", false)
+                && catalog::is_adult_item(c, "movie", id)?
+            {
+                return Err(AppError::Invalid(catalog::ADULT_BLOCKED_MESSAGE.into()));
+            }
             Ok(c.query_row(
                 "SELECT info_synced FROM movies WHERE id = ?1",
                 rusqlite::params![id],
@@ -266,6 +272,11 @@ pub async fn get_series_detail(state: State<'_, AppState>, id: i64) -> AppResult
     let synced: bool = state
         .db
         .read_async(move |c| {
+            if settings::get_bool(c, "block_adult_content", false)
+                && catalog::is_adult_item(c, "series", id)?
+            {
+                return Err(AppError::Invalid(catalog::ADULT_BLOCKED_MESSAGE.into()));
+            }
             Ok(c.query_row(
                 "SELECT episodes_synced FROM series WHERE id = ?1",
                 rusqlite::params![id],
@@ -298,6 +309,11 @@ pub async fn resolve_stream(
         .db
         .read_async(move |c| {
             let profile = settings::active_profile(c);
+            if settings::get_bool(c, "block_adult_content", false)
+                && catalog::is_adult_item(c, &item_type, item_id)?
+            {
+                return Err(AppError::Invalid(catalog::ADULT_BLOCKED_MESSAGE.into()));
+            }
             let row = catalog::playable_row(c, &item_type, item_id)?;
             let remember = settings::get_bool(c, "player_remember_position", true);
             let position_secs = if remember && item_type != "channel" {
@@ -377,6 +393,11 @@ pub async fn toggle_favorite(
         .db
         .write_async(move |c| {
             let profile = settings::active_profile(c);
+            if settings::get_bool(c, "block_adult_content", false)
+                && catalog::is_adult_item(c, &item_type, item_id)?
+            {
+                return Err(AppError::Invalid(catalog::ADULT_BLOCKED_MESSAGE.into()));
+            }
             user_data::toggle_favorite(c, profile, &item_type, item_id)
         })
         .await
@@ -392,7 +413,8 @@ pub async fn list_favorites(
         .db
         .read_async(move |c| {
             let profile = settings::active_profile(c);
-            user_data::list_favorites(c, profile, item_type.as_deref(), limit)
+            let block_adult = settings::get_bool(c, "block_adult_content", false);
+            user_data::list_favorites_filtered(c, profile, item_type.as_deref(), limit, block_adult)
         })
         .await
 }
@@ -428,7 +450,15 @@ pub async fn list_history(
         .db
         .read_async(move |c| {
             let profile = settings::active_profile(c);
-            user_data::list_history(c, profile, item_type.as_deref(), limit, offset)
+            let block_adult = settings::get_bool(c, "block_adult_content", false);
+            user_data::list_history_filtered(
+                c,
+                profile,
+                item_type.as_deref(),
+                limit,
+                offset,
+                block_adult,
+            )
         })
         .await
 }
@@ -469,7 +499,8 @@ pub async fn get_home_data(state: State<'_, AppState>) -> AppResult<HomeData> {
         .db
         .read_async(|c| {
             let profile = settings::active_profile(c);
-            home::get_home_data(c, profile)
+            let block_adult = settings::get_bool(c, "block_adult_content", false);
+            home::get_home_data(c, profile, block_adult)
         })
         .await
 }
@@ -480,7 +511,8 @@ pub async fn global_search(state: State<'_, AppState>, query: String) -> AppResu
         .db
         .read_async(move |c| {
             let profile = settings::active_profile(c);
-            search::global_search(c, profile, &query)
+            let block_adult = settings::get_bool(c, "block_adult_content", false);
+            search::global_search(c, profile, &query, block_adult)
         })
         .await
 }

@@ -30,11 +30,12 @@ pub fn toggle_favorite(
     Ok(true)
 }
 
-pub fn list_favorites(
+pub fn list_favorites_filtered(
     conn: &Connection,
     profile: i64,
     item_type: Option<&str>,
     limit: Option<usize>,
+    block_adult: bool,
 ) -> AppResult<Vec<MediaCard>> {
     if let Some(t) = item_type {
         crate::security::validate_item_type(t)?;
@@ -53,6 +54,9 @@ pub fn list_favorites(
     let mut out = Vec::with_capacity(refs.len());
     for (t, id) in refs {
         // Items can disappear after a resync; skip dangling favorites.
+        if block_adult && catalog::is_adult_item(conn, &t, id)? {
+            continue;
+        }
         if let Some(card) = catalog::card_for(conn, profile, &t, id)? {
             out.push(card);
         }
@@ -72,8 +76,7 @@ pub fn report_playback(
     if !position_secs.is_finite() || !duration_secs.is_finite() || position_secs < 0.0 {
         return Err(AppError::Invalid("posição de reprodução inválida".into()));
     }
-    let completed =
-        duration_secs > 0.0 && (position_secs / duration_secs) >= COMPLETION_THRESHOLD;
+    let completed = duration_secs > 0.0 && (position_secs / duration_secs) >= COMPLETION_THRESHOLD;
     conn.execute(
         "INSERT INTO history (profile_id, item_type, item_id, position_secs, duration_secs, completed, updated_at)
          VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
@@ -87,12 +90,13 @@ pub fn report_playback(
     Ok(())
 }
 
-pub fn list_history(
+pub fn list_history_filtered(
     conn: &Connection,
     profile: i64,
     item_type: Option<&str>,
     limit: i64,
     offset: i64,
+    block_adult: bool,
 ) -> AppResult<Vec<HistoryEntry>> {
     if let Some(t) = item_type {
         crate::security::validate_item_type(t)?;
@@ -120,16 +124,28 @@ pub fn list_history(
         .collect::<Result<Vec<_>, _>>()?;
     let mut out = Vec::with_capacity(rows.len());
     for (t, id, pos, dur, completed, updated_at) in rows {
+        if block_adult && catalog::is_adult_item(conn, &t, id)? {
+            continue;
+        }
         if let Some(mut card) = catalog::card_for(conn, profile, &t, id)? {
             card.position_secs = Some(pos);
             card.duration_secs = Some(dur);
-            out.push(HistoryEntry { card, updated_at, completed });
+            out.push(HistoryEntry {
+                card,
+                updated_at,
+                completed,
+            });
         }
     }
     Ok(out)
 }
 
-pub fn continue_watching(conn: &Connection, profile: i64, limit: i64) -> AppResult<Vec<MediaCard>> {
+pub fn continue_watching_filtered(
+    conn: &Connection,
+    profile: i64,
+    limit: i64,
+    block_adult: bool,
+) -> AppResult<Vec<MediaCard>> {
     let mut stmt = conn.prepare(
         "SELECT item_type, item_id, position_secs, duration_secs FROM history
          WHERE profile_id = ?1 AND completed = 0 AND position_secs > 30
@@ -148,6 +164,9 @@ pub fn continue_watching(conn: &Connection, profile: i64, limit: i64) -> AppResu
         .collect::<Result<Vec<_>, _>>()?;
     let mut out = Vec::with_capacity(rows.len());
     for (t, id, pos, dur) in rows {
+        if block_adult && catalog::is_adult_item(conn, &t, id)? {
+            continue;
+        }
         if let Some(mut card) = catalog::card_for(conn, profile, &t, id)? {
             card.position_secs = Some(pos);
             card.duration_secs = Some(dur);
@@ -157,17 +176,27 @@ pub fn continue_watching(conn: &Connection, profile: i64, limit: i64) -> AppResu
     Ok(out)
 }
 
-pub fn recent_channels(conn: &Connection, profile: i64, limit: i64) -> AppResult<Vec<MediaCard>> {
+pub fn recent_channels_filtered(
+    conn: &Connection,
+    profile: i64,
+    limit: i64,
+    block_adult: bool,
+) -> AppResult<Vec<MediaCard>> {
     let mut stmt = conn.prepare(
         "SELECT item_id FROM history
          WHERE profile_id = ?1 AND item_type = 'channel'
          ORDER BY updated_at DESC LIMIT ?2",
     )?;
     let ids = stmt
-        .query_map(params![profile, limit.clamp(1, 100)], |r| r.get::<_, i64>(0))?
+        .query_map(params![profile, limit.clamp(1, 100)], |r| {
+            r.get::<_, i64>(0)
+        })?
         .collect::<Result<Vec<_>, _>>()?;
     let mut out = Vec::with_capacity(ids.len());
     for id in ids {
+        if block_adult && catalog::is_adult_item(conn, "channel", id)? {
+            continue;
+        }
         if let Some(card) = catalog::channel_card(conn, profile, id)? {
             out.push(card);
         }
@@ -190,7 +219,10 @@ pub fn delete_history_entry(
 }
 
 pub fn clear_history(conn: &Connection, profile: i64) -> AppResult<()> {
-    conn.execute("DELETE FROM history WHERE profile_id = ?1", params![profile])?;
+    conn.execute(
+        "DELETE FROM history WHERE profile_id = ?1",
+        params![profile],
+    )?;
     Ok(())
 }
 
@@ -277,7 +309,9 @@ pub fn update_profile(
 pub fn delete_profile(conn: &Connection, id: i64) -> AppResult<()> {
     let count: i64 = conn.query_row("SELECT COUNT(*) FROM profiles", [], |r| r.get(0))?;
     if count <= 1 {
-        return Err(AppError::Invalid("não é possível excluir o único perfil".into()));
+        return Err(AppError::Invalid(
+            "não é possível excluir o único perfil".into(),
+        ));
     }
     // Remove the profile's playlists first (cascading their cached catalog),
     // then the profile itself (cascading its favorites/history).
@@ -362,16 +396,25 @@ mod tests {
     fn favorite_toggle_roundtrip() {
         let db = temp_db();
         let (_sid, movie_id) = seed(&db);
-        let on = db.write(move |c| toggle_favorite(c, 1, "movie", movie_id)).unwrap();
+        let on = db
+            .write(move |c| toggle_favorite(c, 1, "movie", movie_id))
+            .unwrap();
         assert!(on);
-        let favs = db.read(|c| list_favorites(c, 1, None, None)).unwrap();
+        let favs = db
+            .read(|c| list_favorites_filtered(c, 1, None, None, false))
+            .unwrap();
         assert_eq!(favs.len(), 1);
         assert_eq!(favs[0].name, "Filme X");
         assert!(favs[0].favorite);
 
-        let off = db.write(move |c| toggle_favorite(c, 1, "movie", movie_id)).unwrap();
+        let off = db
+            .write(move |c| toggle_favorite(c, 1, "movie", movie_id))
+            .unwrap();
         assert!(!off);
-        assert!(db.read(|c| list_favorites(c, 1, None, None)).unwrap().is_empty());
+        assert!(db
+            .read(|c| list_favorites_filtered(c, 1, None, None, false))
+            .unwrap()
+            .is_empty());
     }
 
     #[test]
@@ -381,42 +424,116 @@ mod tests {
     }
 
     #[test]
+    fn adult_block_hides_saved_favorites() {
+        let db = temp_db();
+        let (sid, normal_movie_id) = seed(&db);
+        db.write(move |c| {
+            cat::upsert_movies(
+                c,
+                sid,
+                2,
+                &[cat::MovieRec {
+                    external_id: None,
+                    name: "Filme XXX".into(),
+                    logo_url: None,
+                    stream_url: "http://h/adulto.mp4".into(),
+                    year: None,
+                    duration_secs: None,
+                    rating: None,
+                    plot: None,
+                    genre: None,
+                    extra_json: None,
+                    category_key: None,
+                }],
+                &HashMap::new(),
+            )
+        })
+        .unwrap();
+        let adult_movie_id: i64 = db
+            .read(|c| {
+                Ok(
+                    c.query_row("SELECT id FROM movies WHERE name = 'Filme XXX'", [], |r| {
+                        r.get(0)
+                    })?,
+                )
+            })
+            .unwrap();
+
+        db.write(move |c| toggle_favorite(c, 1, "movie", normal_movie_id))
+            .unwrap();
+        db.write(move |c| toggle_favorite(c, 1, "movie", adult_movie_id))
+            .unwrap();
+
+        let all = db
+            .read(|c| list_favorites_filtered(c, 1, Some("movie"), None, false))
+            .unwrap();
+        assert_eq!(all.len(), 2);
+
+        let blocked = db
+            .read(|c| list_favorites_filtered(c, 1, Some("movie"), None, true))
+            .unwrap();
+        assert_eq!(blocked.len(), 1);
+        assert_eq!(blocked[0].name, "Filme X");
+    }
+
+    #[test]
     fn history_upsert_and_continue_watching() {
         let db = temp_db();
         let (_sid, movie_id) = seed(&db);
 
-        db.write(move |c| report_playback(c, 1, "movie", movie_id, 120.0, 7200.0)).unwrap();
-        db.write(move |c| report_playback(c, 1, "movie", movie_id, 300.0, 7200.0)).unwrap();
+        db.write(move |c| report_playback(c, 1, "movie", movie_id, 120.0, 7200.0))
+            .unwrap();
+        db.write(move |c| report_playback(c, 1, "movie", movie_id, 300.0, 7200.0))
+            .unwrap();
 
-        let hist = db.read(|c| list_history(c, 1, None, 50, 0)).unwrap();
+        let hist = db
+            .read(|c| list_history_filtered(c, 1, None, 50, 0, false))
+            .unwrap();
         assert_eq!(hist.len(), 1, "upsert must not duplicate entries");
         assert_eq!(hist[0].card.position_secs, Some(300.0));
         assert!(!hist[0].completed);
 
-        let cw = db.read(|c| continue_watching(c, 1, 10)).unwrap();
+        let cw = db
+            .read(|c| continue_watching_filtered(c, 1, 10, false))
+            .unwrap();
         assert_eq!(cw.len(), 1);
 
         // Watching past 95% marks as completed and leaves continue watching.
-        db.write(move |c| report_playback(c, 1, "movie", movie_id, 7100.0, 7200.0)).unwrap();
-        assert!(db.read(|c| continue_watching(c, 1, 10)).unwrap().is_empty());
-        let hist = db.read(|c| list_history(c, 1, None, 50, 0)).unwrap();
+        db.write(move |c| report_playback(c, 1, "movie", movie_id, 7100.0, 7200.0))
+            .unwrap();
+        assert!(db
+            .read(|c| continue_watching_filtered(c, 1, 10, false))
+            .unwrap()
+            .is_empty());
+        let hist = db
+            .read(|c| list_history_filtered(c, 1, None, 50, 0, false))
+            .unwrap();
         assert!(hist[0].completed);
 
         db.write(|c| clear_history(c, 1)).unwrap();
-        assert!(db.read(|c| list_history(c, 1, None, 50, 0)).unwrap().is_empty());
+        assert!(db
+            .read(|c| list_history_filtered(c, 1, None, 50, 0, false))
+            .unwrap()
+            .is_empty());
     }
 
     #[test]
     fn favorites_filter_in_catalog_queries() {
         let db = temp_db();
         let (_sid, movie_id) = seed(&db);
-        db.write(move |c| toggle_favorite(c, 1, "movie", movie_id)).unwrap();
+        db.write(move |c| toggle_favorite(c, 1, "movie", movie_id))
+            .unwrap();
         let page = db
             .read(|c| {
-                cat::list_movies(
+                cat::list_movies_filtered(
                     c,
                     1,
-                    &CatalogFilter { favorites_only: true, limit: 10, ..Default::default() },
+                    &CatalogFilter {
+                        favorites_only: true,
+                        limit: 10,
+                        ..Default::default()
+                    },
+                    false,
                 )
             })
             .unwrap();
@@ -432,15 +549,21 @@ mod tests {
             .unwrap();
         let profiles = db.read(move |c| list_profiles(c, pid)).unwrap();
         assert_eq!(profiles.len(), 2);
-        assert!(profiles
-            .iter()
-            .any(|p| p.name == "Crianças" && p.active && p.color == "#3aa0ff" && p.image.as_deref() == Some("preset:nebula")));
+        assert!(profiles.iter().any(|p| p.name == "Crianças"
+            && p.active
+            && p.color == "#3aa0ff"
+            && p.image.as_deref() == Some("preset:nebula")));
 
-        assert!(db.write(|c| create_profile(c, "Crianças", None, None)).is_err());
+        assert!(db
+            .write(|c| create_profile(c, "Crianças", None, None))
+            .is_err());
 
         db.write(move |c| delete_profile(c, pid)).unwrap();
         let profiles = db.read(|c| list_profiles(c, 1)).unwrap();
         assert_eq!(profiles.len(), 1);
-        assert!(db.write(|c| delete_profile(c, 1)).is_err(), "last profile is protected");
+        assert!(
+            db.write(|c| delete_profile(c, 1)).is_err(),
+            "last profile is protected"
+        );
     }
 }

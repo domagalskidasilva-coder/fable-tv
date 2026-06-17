@@ -187,6 +187,9 @@ const ptBR: Record<string, string> = {
   "settings.lightweight": "Modo leve",
   "settings.lightweightHint":
     "Ideal para Android e aparelhos modestos: menos EPG, menos logos e carregamento sob demanda.",
+  "settings.blockAdultContent": "Bloquear conteúdo adulto",
+  "settings.blockAdultContentHint":
+    "Oculta canais, filmes, séries, episódios e resultados com metadados adultos.",
   "settings.epgDays": "Dias de EPG para guardar",
   "settings.player": "Player",
   "settings.autoplayNext": "Reproduzir próximo episódio automaticamente",
@@ -405,6 +408,9 @@ const en: Record<string, string> = {
   "settings.lightweight": "Lightweight mode",
   "settings.lightweightHint":
     "Great for Android and modest devices: less EPG, fewer logos, on-demand loading.",
+  "settings.blockAdultContent": "Block adult content",
+  "settings.blockAdultContentHint":
+    "Hides channels, movies, series, episodes and results with adult metadata.",
   "settings.epgDays": "EPG days to keep",
   "settings.player": "Player",
   "settings.autoplayNext": "Autoplay next episode",

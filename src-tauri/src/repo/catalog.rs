@@ -9,6 +9,147 @@ use rusqlite::types::Value as SqlValue;
 use rusqlite::{params, params_from_iter, Connection, OptionalExtension};
 use std::collections::HashMap;
 
+const ADULT_SUBSTRING_TERMS: &[&str] = &[
+    "18+", "+18", "adult", "adulto", "adultos", "brazzers", "erotic", "erotica", "erotico",
+    "erótica", "erótico", "hardcore", "hentai", "onlyfans", "porn", "porno", "redtube", "xvideos",
+    "xxx",
+];
+
+const ADULT_WORD_TERMS: &[&str] = &["nude", "nudes", "nudez", "sex", "sexo", "sexy"];
+const ADULT_SQL_TOKEN_DELIMITERS: &[char] = &[
+    '-', '_', '.', '/', '\\', '|', ':', ';', ',', '(', ')', '[', ']', '{', '}',
+];
+
+pub(crate) fn is_adult_text(text: &str) -> bool {
+    let normalized = normalize_text(text);
+    if ADULT_SUBSTRING_TERMS
+        .iter()
+        .any(|term| normalized.contains(term))
+    {
+        return true;
+    }
+
+    let tokenized = normalized
+        .chars()
+        .map(|c| if c.is_ascii_alphanumeric() { c } else { ' ' })
+        .collect::<String>();
+    let padded = format!(" {tokenized} ");
+    ADULT_WORD_TERMS
+        .iter()
+        .any(|term| padded.contains(&format!(" {term} ")))
+}
+
+fn quote_sql_literal(value: &str) -> String {
+    value.replace('\'', "''")
+}
+
+pub(crate) fn adult_match_sql(expr: &str) -> String {
+    let lower = format!("LOWER(COALESCE(({expr}), ''))");
+    let mut conditions: Vec<String> = ADULT_SUBSTRING_TERMS
+        .iter()
+        .map(|term| format!("{lower} LIKE '%{}%'", quote_sql_literal(term)))
+        .collect();
+
+    let mut token_expr = lower.clone();
+    for delimiter in ADULT_SQL_TOKEN_DELIMITERS {
+        token_expr = format!(
+            "REPLACE({token_expr}, '{}', ' ')",
+            quote_sql_literal(&delimiter.to_string())
+        );
+    }
+    let padded = format!("(' ' || {token_expr} || ' ')");
+    conditions.extend(
+        ADULT_WORD_TERMS
+            .iter()
+            .map(|term| format!("{padded} LIKE '% {} %'", quote_sql_literal(term))),
+    );
+
+    format!("({})", conditions.join(" OR "))
+}
+
+fn concat_sql(parts: &[String]) -> String {
+    parts
+        .iter()
+        .map(|part| format!("COALESCE({part}, '')"))
+        .collect::<Vec<_>>()
+        .join(" || ' ' || ")
+}
+
+fn category_haystack_for_alias(alias: &str) -> String {
+    format!("(SELECT cat.search_text || ' ' || cat.name FROM categories cat WHERE cat.id = {alias}.category_id)")
+}
+
+fn category_haystack(category_alias: &str) -> String {
+    format!("{category_alias}.search_text || ' ' || {category_alias}.name")
+}
+
+fn item_haystack(alias: &str, item_type: &str, category: Option<String>) -> String {
+    let mut parts = match item_type {
+        "channel" => vec![
+            format!("{alias}.search_text"),
+            format!("{alias}.name"),
+            format!("{alias}.group_title"),
+            format!("{alias}.tvg_name"),
+        ],
+        "movie" => vec![
+            format!("{alias}.search_text"),
+            format!("{alias}.name"),
+            format!("{alias}.genre"),
+            format!("{alias}.rating"),
+        ],
+        "series" => vec![
+            format!("{alias}.search_text"),
+            format!("{alias}.name"),
+            format!("{alias}.genre"),
+            format!("{alias}.rating"),
+        ],
+        "episode" => vec![
+            format!("{alias}.search_text"),
+            format!("{alias}.name"),
+            format!("{alias}.plot"),
+        ],
+        _ => vec![format!("{alias}.search_text"), format!("{alias}.name")],
+    };
+    if let Some(category) = category {
+        parts.push(category);
+    }
+    concat_sql(&parts)
+}
+
+pub(crate) fn adult_exclusion_sql(alias: &str, item_type: &str) -> String {
+    let category = matches!(item_type, "channel" | "movie" | "series")
+        .then(|| category_haystack_for_alias(alias));
+    format!(
+        "NOT {}",
+        adult_match_sql(&item_haystack(alias, item_type, category))
+    )
+}
+
+pub(crate) fn adult_exclusion_with_category_sql(
+    alias: &str,
+    item_type: &str,
+    category_alias: &str,
+) -> String {
+    format!(
+        "NOT {}",
+        adult_match_sql(&item_haystack(
+            alias,
+            item_type,
+            Some(category_haystack(category_alias)),
+        ))
+    )
+}
+
+pub(crate) fn adult_category_exclusion_sql(category_alias: &str) -> String {
+    format!(
+        "NOT {}",
+        adult_match_sql(&category_haystack(category_alias))
+    )
+}
+
+pub(crate) const ADULT_BLOCKED_MESSAGE: &str =
+    "conteúdo bloqueado pela configuração de conteúdo adulto";
+
 // ---------------------------------------------------------------------------
 // Batch records produced by the sync engine
 // ---------------------------------------------------------------------------
@@ -286,7 +427,12 @@ pub fn upsert_series(
 }
 
 /// Removes rows that were not touched by the latest sync of a catalog.
-pub fn delete_stale(conn: &Connection, table: &str, source_id: i64, token: i64) -> AppResult<usize> {
+pub fn delete_stale(
+    conn: &Connection,
+    table: &str,
+    source_id: i64,
+    token: i64,
+) -> AppResult<usize> {
     let sql = match table {
         "channels" => "DELETE FROM channels WHERE source_id = ?1 AND sync_token != ?2",
         "movies" => "DELETE FROM movies WHERE source_id = ?1 AND sync_token != ?2",
@@ -313,7 +459,13 @@ struct FilterSql {
     values: Vec<SqlValue>,
 }
 
-fn build_filter(filter: &CatalogFilter, table_alias: &str, item_type: &str, profile: i64) -> FilterSql {
+fn build_filter(
+    filter: &CatalogFilter,
+    table_alias: &str,
+    item_type: &str,
+    profile: i64,
+    block_adult: bool,
+) -> FilterSql {
     let mut conds: Vec<String> = vec!["1=1".into()];
     let mut values: Vec<SqlValue> = Vec::new();
     if let Some(pid) = filter.profile_id {
@@ -331,7 +483,12 @@ fn build_filter(filter: &CatalogFilter, table_alias: &str, item_type: &str, prof
         values.push(SqlValue::Integer(cid));
         conds.push(format!("{table_alias}.category_id = ?{}", values.len()));
     }
-    if let Some(q) = filter.search.as_ref().map(|s| normalize_text(s)).filter(|s| !s.is_empty()) {
+    if let Some(q) = filter
+        .search
+        .as_ref()
+        .map(|s| normalize_text(s))
+        .filter(|s| !s.is_empty())
+    {
         values.push(SqlValue::Text(format!("%{}%", escape_like(&q))));
         conds.push(format!(
             "{table_alias}.search_text LIKE ?{} ESCAPE '\\'",
@@ -347,6 +504,9 @@ fn build_filter(filter: &CatalogFilter, table_alias: &str, item_type: &str, prof
             values.len()
         ));
     }
+    if block_adult {
+        conds.push(adult_exclusion_sql(table_alias, item_type));
+    }
     FilterSql {
         where_clause: conds.join(" AND "),
         values,
@@ -359,12 +519,13 @@ fn clamp_page(filter: &CatalogFilter) -> (i64, i64) {
     (limit, offset)
 }
 
-pub fn list_channels(
+pub fn list_channels_filtered(
     conn: &Connection,
     profile: i64,
     filter: &CatalogFilter,
+    block_adult: bool,
 ) -> AppResult<Paged<MediaCard>> {
-    let f = build_filter(filter, "ch", "channel", profile);
+    let f = build_filter(filter, "ch", "channel", profile, block_adult);
     let (limit, offset) = clamp_page(filter);
 
     let total: i64 = conn.query_row(
@@ -399,7 +560,11 @@ pub fn list_channels(
                 image: r.get(2)?,
                 subtitle: {
                     let g: String = r.get(3)?;
-                    if g.is_empty() { None } else { Some(g) }
+                    if g.is_empty() {
+                        None
+                    } else {
+                        Some(g)
+                    }
                 },
                 source_id: r.get(4)?,
                 favorite: r.get::<_, i64>(5)? != 0,
@@ -410,15 +575,21 @@ pub fn list_channels(
         })?
         .collect::<Result<Vec<_>, _>>()?;
 
-    Ok(Paged { items, total, offset, limit })
+    Ok(Paged {
+        items,
+        total,
+        offset,
+        limit,
+    })
 }
 
-pub fn list_movies(
+pub fn list_movies_filtered(
     conn: &Connection,
     profile: i64,
     filter: &CatalogFilter,
+    block_adult: bool,
 ) -> AppResult<Paged<MediaCard>> {
-    let f = build_filter(filter, "m", "movie", profile);
+    let f = build_filter(filter, "m", "movie", profile, block_adult);
     let (limit, offset) = clamp_page(filter);
 
     let total: i64 = conn.query_row(
@@ -462,15 +633,21 @@ pub fn list_movies(
         })?
         .collect::<Result<Vec<_>, _>>()?;
 
-    Ok(Paged { items, total, offset, limit })
+    Ok(Paged {
+        items,
+        total,
+        offset,
+        limit,
+    })
 }
 
-pub fn list_series(
+pub fn list_series_filtered(
     conn: &Connection,
     profile: i64,
     filter: &CatalogFilter,
+    block_adult: bool,
 ) -> AppResult<Paged<MediaCard>> {
-    let f = build_filter(filter, "se", "series", profile);
+    let f = build_filter(filter, "se", "series", profile, block_adult);
     let (limit, offset) = clamp_page(filter);
 
     let total: i64 = conn.query_row(
@@ -514,29 +691,55 @@ pub fn list_series(
         })?
         .collect::<Result<Vec<_>, _>>()?;
 
-    Ok(Paged { items, total, offset, limit })
+    Ok(Paged {
+        items,
+        total,
+        offset,
+        limit,
+    })
 }
 
-pub fn list_categories(
+pub fn list_categories_filtered(
     conn: &Connection,
     kind: &str,
     profile_id: Option<i64>,
+    block_adult: bool,
 ) -> AppResult<Vec<Category>> {
     let count_table = match kind {
         "live" => "channels",
         "movie" => "movies",
         "series" => "series",
-        other => return Err(AppError::Invalid(format!("tipo de categoria inválido: {other}"))),
+        other => {
+            return Err(AppError::Invalid(format!(
+                "tipo de categoria inválido: {other}"
+            )))
+        }
     };
     let mut sql = format!(
         "SELECT cat.id, cat.source_id, cat.kind, cat.name,
-                (SELECT COUNT(*) FROM {count_table} t WHERE t.category_id = cat.id) AS cnt
+                (SELECT COUNT(*) FROM {count_table} t WHERE t.category_id = cat.id{count_filter}) AS cnt
          FROM categories cat WHERE cat.kind = ?1"
+        ,
+        count_filter = if block_adult {
+            format!(
+                " AND {}",
+                adult_exclusion_with_category_sql(
+                    "t",
+                    if kind == "live" { "channel" } else { kind },
+                    "cat",
+                )
+            )
+        } else {
+            String::new()
+        }
     );
     let mut values: Vec<SqlValue> = vec![SqlValue::Text(kind.to_string())];
     if let Some(pid) = profile_id {
         values.push(SqlValue::Integer(pid));
         sql.push_str(" AND cat.source_id IN (SELECT id FROM sources WHERE profile_id = ?2)");
+    }
+    if block_adult {
+        sql.push_str(&format!(" AND {}", adult_category_exclusion_sql("cat")));
     }
     sql.push_str(" ORDER BY cat.name COLLATE NOCASE ASC");
     let mut stmt = conn.prepare(&sql)?;
@@ -668,7 +871,10 @@ pub fn series_detail(conn: &Connection, profile: i64, id: i64) -> AppResult<Seri
     for ep in episodes {
         match seasons.last_mut() {
             Some(season) if season.season == ep.season => season.episodes.push(ep),
-            _ => seasons.push(Season { season: ep.season, episodes: vec![ep] }),
+            _ => seasons.push(Season {
+                season: ep.season,
+                episodes: vec![ep],
+            }),
         }
     }
 
@@ -796,6 +1002,64 @@ pub fn card_for(
         "episode" => episode_card(conn, profile, id),
         other => Err(AppError::Invalid(format!("tipo de item inválido: {other}"))),
     }
+}
+
+pub fn is_adult_item(conn: &Connection, item_type: &str, id: i64) -> AppResult<bool> {
+    crate::security::validate_item_type(item_type)?;
+    let text = match item_type {
+        "channel" => conn
+            .query_row(
+                "SELECT ch.name || ' ' || COALESCE(ch.search_text, '') || ' ' ||
+                        COALESCE(ch.group_title, '') || ' ' || COALESCE(ch.tvg_name, '') || ' ' ||
+                        COALESCE(cat.name, '') || ' ' || COALESCE(cat.search_text, '')
+                 FROM channels ch
+                 LEFT JOIN categories cat ON cat.id = ch.category_id
+                 WHERE ch.id = ?1",
+                params![id],
+                |r| r.get::<_, String>(0),
+            )
+            .optional()?,
+        "movie" => conn
+            .query_row(
+                "SELECT m.name || ' ' || COALESCE(m.search_text, '') || ' ' ||
+                        COALESCE(m.genre, '') || ' ' || COALESCE(m.rating, '') || ' ' ||
+                        COALESCE(cat.name, '') || ' ' || COALESCE(cat.search_text, '')
+                 FROM movies m
+                 LEFT JOIN categories cat ON cat.id = m.category_id
+                 WHERE m.id = ?1",
+                params![id],
+                |r| r.get::<_, String>(0),
+            )
+            .optional()?,
+        "series" => conn
+            .query_row(
+                "SELECT se.name || ' ' || COALESCE(se.search_text, '') || ' ' ||
+                        COALESCE(se.genre, '') || ' ' || COALESCE(se.rating, '') || ' ' ||
+                        COALESCE(cat.name, '') || ' ' || COALESCE(cat.search_text, '')
+                 FROM series se
+                 LEFT JOIN categories cat ON cat.id = se.category_id
+                 WHERE se.id = ?1",
+                params![id],
+                |r| r.get::<_, String>(0),
+            )
+            .optional()?,
+        "episode" => conn
+            .query_row(
+                "SELECT e.name || ' ' || COALESCE(e.search_text, '') || ' ' ||
+                        COALESCE(e.plot, '') || ' ' || se.name || ' ' ||
+                        COALESCE(se.search_text, '') || ' ' || COALESCE(se.genre, '') || ' ' ||
+                        COALESCE(cat.name, '') || ' ' || COALESCE(cat.search_text, '')
+                 FROM episodes e
+                 JOIN series se ON se.id = e.series_id
+                 LEFT JOIN categories cat ON cat.id = se.category_id
+                 WHERE e.id = ?1",
+                params![id],
+                |r| r.get::<_, String>(0),
+            )
+            .optional()?,
+        _ => None,
+    };
+    Ok(text.as_deref().is_some_and(is_adult_text))
 }
 
 // ---------------------------------------------------------------------------
@@ -979,21 +1243,40 @@ mod tests {
                 c,
                 sid,
                 1,
-                &[ch("Canal A", "http://h/a.ts", Some("Esportes")), ch("Canal B", "http://h/b.ts", None)],
+                &[
+                    ch("Canal A", "http://h/a.ts", Some("Esportes")),
+                    ch("Canal B", "http://h/b.ts", None),
+                ],
                 &cats,
             )
         })
         .unwrap();
 
         let first = db
-            .read(move |c| list_channels(c, 1, &CatalogFilter { limit: 50, ..Default::default() }))
+            .read(move |c| {
+                list_channels_filtered(
+                    c,
+                    1,
+                    &CatalogFilter {
+                        limit: 50,
+                        ..Default::default()
+                    },
+                    false,
+                )
+            })
             .unwrap();
         assert_eq!(first.total, 2);
         let id_a = first.items.iter().find(|i| i.name == "Canal A").unwrap().id;
 
         // Second sync: Canal A renamed, Canal B gone.
         db.write(|c| {
-            upsert_channels(c, sid, 2, &[ch("Canal A HD", "http://h/a.ts", Some("Esportes"))], &cats)
+            upsert_channels(
+                c,
+                sid,
+                2,
+                &[ch("Canal A HD", "http://h/a.ts", Some("Esportes"))],
+                &cats,
+            )
         })
         .unwrap();
         db.write(move |c| {
@@ -1003,7 +1286,17 @@ mod tests {
         .unwrap();
 
         let second = db
-            .read(move |c| list_channels(c, 1, &CatalogFilter { limit: 50, ..Default::default() }))
+            .read(move |c| {
+                list_channels_filtered(
+                    c,
+                    1,
+                    &CatalogFilter {
+                        limit: 50,
+                        ..Default::default()
+                    },
+                    false,
+                )
+            })
             .unwrap();
         assert_eq!(second.total, 1);
         assert_eq!(second.items[0].name, "Canal A HD");
@@ -1025,12 +1318,37 @@ mod tests {
             category_key: None,
             episodes_synced: true,
             episodes: vec![
-                EpisodeRec { season: 1, episode_num: 2, name: "Dark S01E02".into(), stream_url: "http://h/d2.mp4".into(), duration_secs: None, plot: None, thumbnail_url: None },
-                EpisodeRec { season: 1, episode_num: 1, name: "Dark S01E01".into(), stream_url: "http://h/d1.mp4".into(), duration_secs: None, plot: None, thumbnail_url: None },
-                EpisodeRec { season: 2, episode_num: 1, name: "Dark S02E01".into(), stream_url: "http://h/d3.mp4".into(), duration_secs: None, plot: None, thumbnail_url: None },
+                EpisodeRec {
+                    season: 1,
+                    episode_num: 2,
+                    name: "Dark S01E02".into(),
+                    stream_url: "http://h/d2.mp4".into(),
+                    duration_secs: None,
+                    plot: None,
+                    thumbnail_url: None,
+                },
+                EpisodeRec {
+                    season: 1,
+                    episode_num: 1,
+                    name: "Dark S01E01".into(),
+                    stream_url: "http://h/d1.mp4".into(),
+                    duration_secs: None,
+                    plot: None,
+                    thumbnail_url: None,
+                },
+                EpisodeRec {
+                    season: 2,
+                    episode_num: 1,
+                    name: "Dark S02E01".into(),
+                    stream_url: "http://h/d3.mp4".into(),
+                    duration_secs: None,
+                    plot: None,
+                    thumbnail_url: None,
+                },
             ],
         };
-        db.write(move |c| upsert_series(c, sid, 1, &[rec], &HashMap::new())).unwrap();
+        db.write(move |c| upsert_series(c, sid, 1, &[rec], &HashMap::new()))
+            .unwrap();
 
         let series_id: i64 = db
             .read(|c| Ok(c.query_row("SELECT id FROM series", [], |r| r.get(0))?))
@@ -1054,14 +1372,21 @@ mod tests {
         let db = temp_db();
         let sid = seed_source(&db);
         let recs: Vec<ChannelRec> = (0..30)
-            .map(|i| ch(&format!("Canal Ação {i}"), &format!("http://h/{i}.ts"), None))
+            .map(|i| {
+                ch(
+                    &format!("Canal Ação {i}"),
+                    &format!("http://h/{i}.ts"),
+                    None,
+                )
+            })
             .chain(std::iter::once(ch("Outro", "http://h/outro.ts", None)))
             .collect();
-        db.write(move |c| upsert_channels(c, sid, 1, &recs, &HashMap::new())).unwrap();
+        db.write(move |c| upsert_channels(c, sid, 1, &recs, &HashMap::new()))
+            .unwrap();
 
         let page = db
             .read(|c| {
-                list_channels(
+                list_channels_filtered(
                     c,
                     1,
                     &CatalogFilter {
@@ -1070,10 +1395,109 @@ mod tests {
                         offset: 10,
                         ..Default::default()
                     },
+                    false,
                 )
             })
             .unwrap();
         assert_eq!(page.total, 30);
         assert_eq!(page.items.len(), 10);
+    }
+
+    #[test]
+    fn adult_text_classifier_uses_word_boundaries() {
+        assert!(is_adult_text("Canais Adultos"));
+        assert!(is_adult_text("Filmes XXX"));
+        assert!(is_adult_text("Cinema 18+"));
+        assert!(is_adult_text("Categoria [sex]"));
+        assert!(!is_adult_text("Sexta Cultural"));
+        assert!(!is_adult_text("Canal infantil"));
+    }
+
+    #[test]
+    fn adult_block_filters_catalog_items_and_categories() {
+        let db = temp_db();
+        let sid = seed_source(&db);
+
+        let cats = db
+            .write(|c| {
+                upsert_categories(
+                    c,
+                    sid,
+                    "live",
+                    &[
+                        ("Familia".into(), "Família".into()),
+                        ("Adultos".into(), "Adultos".into()),
+                    ],
+                )
+            })
+            .unwrap();
+
+        db.write(|c| {
+            upsert_channels(
+                c,
+                sid,
+                1,
+                &[
+                    ch("Canal Familia", "http://h/familia.ts", Some("Familia")),
+                    ch("Sexta Cultural", "http://h/sexta.ts", Some("Familia")),
+                    ch("Canal Adulto", "http://h/adulto.ts", Some("Adultos")),
+                ],
+                &cats,
+            )
+        })
+        .unwrap();
+
+        let unblocked = db
+            .read(|c| {
+                list_channels_filtered(
+                    c,
+                    1,
+                    &CatalogFilter {
+                        limit: 50,
+                        ..Default::default()
+                    },
+                    false,
+                )
+            })
+            .unwrap();
+        assert_eq!(unblocked.total, 3);
+
+        let blocked = db
+            .read(|c| {
+                list_channels_filtered(
+                    c,
+                    1,
+                    &CatalogFilter {
+                        limit: 50,
+                        ..Default::default()
+                    },
+                    true,
+                )
+            })
+            .unwrap();
+        let names = blocked
+            .items
+            .iter()
+            .map(|item| item.name.as_str())
+            .collect::<Vec<_>>();
+        assert_eq!(blocked.total, 2);
+        assert_eq!(names, vec!["Canal Familia", "Sexta Cultural"]);
+
+        let categories = db
+            .read(|c| list_categories_filtered(c, "live", Some(1), true))
+            .unwrap();
+        assert_eq!(categories.len(), 1);
+        assert_eq!(categories[0].name, "Família");
+        assert_eq!(categories[0].item_count, 2);
+
+        let adult_id = unblocked
+            .items
+            .iter()
+            .find(|item| item.name == "Canal Adulto")
+            .unwrap()
+            .id;
+        assert!(db
+            .read(move |c| is_adult_item(c, "channel", adult_id))
+            .unwrap());
     }
 }
