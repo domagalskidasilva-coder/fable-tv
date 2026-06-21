@@ -550,7 +550,19 @@ pub async fn create_profile(state: State<'_, AppState>, profile: NewProfile) -> 
     state
         .db
         .write_async(move |c| {
-            user_data::create_profile(c, &profile.name, profile.color.as_deref(), profile.image.as_deref())
+            let id = user_data::create_profile(
+                c,
+                &profile.name,
+                profile.color.as_deref(),
+                profile.image.as_deref(),
+            )?;
+            // On a clean first run there are no profiles yet; the first one
+            // created becomes the active profile so the app enters it directly.
+            let count: i64 = c.query_row("SELECT COUNT(*) FROM profiles", [], |r| r.get(0))?;
+            if count == 1 {
+                settings::set(c, "active_profile", &id.to_string())?;
+            }
+            Ok(id)
         })
         .await
 }

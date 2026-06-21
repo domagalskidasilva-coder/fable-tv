@@ -79,12 +79,14 @@ export default function App() {
 
   useEffect(refreshSettings, [refreshSettings]);
 
-  // On launch, show the profile gate only when there's a real choice to make.
+  // On launch, show the gate when the user must choose (>1 profile) or onboard
+  // (0 profiles — a fresh install has none). Enter directly only when there's
+  // exactly one profile.
   useEffect(() => {
     listProfiles()
       .then((ps) => {
         setProfileColor((ps.find((p) => p.active) ?? ps[0] ?? null)?.color ?? null);
-        setPhase(ps.length > 1 ? "gate" : "app");
+        setPhase(ps.length === 1 ? "app" : "gate");
       })
       .catch(() => setPhase("app"));
   }, []);

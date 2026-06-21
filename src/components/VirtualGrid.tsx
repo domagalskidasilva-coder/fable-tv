@@ -39,7 +39,14 @@ export function VirtualGrid<T>({
   }, []);
 
   const usable = Math.max(0, width - 8);
-  const cols = Math.max(2, Math.floor((usable + gap) / (minItemWidth + gap)));
+  // On phones a strict minItemWidth leaves catalogs sparse (2-up). Give them a
+  // denser, deliberate count: 3 across for posters, 2 for wide channel tiles.
+  const isPhone = width > 0 && width < 480;
+  const cols = isPhone
+    ? minItemWidth <= 180
+      ? 3
+      : 2
+    : Math.max(2, Math.floor((usable + gap) / (minItemWidth + gap)));
   const colWidth = cols > 0 ? (usable - gap * (cols - 1)) / cols : minItemWidth;
   const rows = Math.ceil(items.length / cols);
   const rowH = rowHeight(colWidth) + gap;

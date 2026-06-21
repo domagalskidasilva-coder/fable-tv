@@ -19,11 +19,11 @@ export function Row({
   };
 
   return (
-    <section data-reveal className="group/row mb-9">
+    <section data-reveal className="group/row mb-7 md:mb-9">
       <div className="mb-3 flex items-baseline gap-3 px-1">
         <h2 className="text-base font-bold tracking-tight text-ink md:text-lg">{title}</h2>
         {action && (
-          <span className="-translate-x-2 opacity-0 transition-all duration-200 group-hover/row:translate-x-0 group-hover/row:opacity-100">
+          <span className="opacity-100 transition-all duration-200 md:-translate-x-2 md:opacity-0 md:group-hover/row:translate-x-0 md:group-hover/row:opacity-100">
             {action}
           </span>
         )}
@@ -62,6 +62,6 @@ export function Row({
   );
 }
 
-export function RowItem({ children, width = "w-40" }: { children: ReactNode; width?: string }) {
+export function RowItem({ children, width = "w-32 sm:w-40" }: { children: ReactNode; width?: string }) {
   return <div className={`${width} shrink-0`}>{children}</div>;
 }

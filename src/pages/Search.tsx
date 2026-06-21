@@ -85,15 +85,16 @@ export default function Search() {
         />
         
         {/* Filter Tabs */}
-        <div className="mt-6 flex justify-center gap-2">
+        <div className="mt-6 flex flex-wrap justify-center gap-2">
           {filters.map((f) => {
             const isActive = filter === f.id;
             return (
               <button
                 key={f.id}
+                data-nav
                 onClick={() => setFilter(f.id)}
                 className={cx(
-                  "relative rounded-full px-5 py-2 text-sm font-bold transition-colors",
+                  "relative rounded-full px-4 py-2 text-sm font-bold transition-colors sm:px-5",
                   isActive ? "text-white" : "text-ink-dim hover:text-white"
                 )}
               >

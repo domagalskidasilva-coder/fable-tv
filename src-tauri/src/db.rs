@@ -307,7 +307,9 @@ CREATE TABLE IF NOT EXISTS settings (
   value TEXT NOT NULL
 );
 
-INSERT OR IGNORE INTO profiles (id, name, created_at) VALUES (1, 'Principal', strftime('%s','now'));
+-- No profile is seeded: a fresh install starts with zero profiles and the app
+-- guides the user to create their own on first run (the first one created
+-- becomes the active profile).
 
 PRAGMA user_version = 1;
 
@@ -340,22 +342,20 @@ mod tests {
     use super::test_support::temp_db;
 
     #[test]
-    fn migration_creates_schema_and_default_profile() {
+    fn migration_creates_schema_without_seed_profile() {
         let db = temp_db();
+        // A fresh install ships with no profiles — the user creates their own.
         let profile_count: i64 = db
             .read(|c| Ok(c.query_row("SELECT COUNT(*) FROM profiles", [], |r| r.get(0))?))
             .unwrap();
-        assert_eq!(profile_count, 1);
+        assert_eq!(profile_count, 0);
         let version: i64 = db
             .read(|c| Ok(c.query_row("PRAGMA user_version", [], |r| r.get(0))?))
             .unwrap();
         assert_eq!(version, 3);
 
-        // v2: a profile carries an avatar color, and sources are bound to it.
-        let color: String = db
-            .read(|c| Ok(c.query_row("SELECT color FROM profiles WHERE id = 1", [], |r| r.get(0))?))
-            .unwrap();
-        assert_eq!(color, "#e8b65a");
+        // v2/v3 columns exist (profiles carry an avatar color/image; sources are
+        // bound to a profile).
         let count_col = |table: &'static str, col: &'static str| -> i64 {
             db.read(move |c| {
                 Ok(c.query_row(

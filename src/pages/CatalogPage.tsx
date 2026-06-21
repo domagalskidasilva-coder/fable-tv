@@ -71,7 +71,7 @@ export default function CatalogPage({ kind }: { kind: "movie" | "series" }) {
     navigate(kind === "movie" ? `/movie/${card.id}` : `/series/${card.id}`);
 
   return (
-    <div className="flex h-full flex-col px-6 pt-6 md:px-10">
+    <div className="flex h-full min-w-0 flex-col px-4 pt-6 sm:px-6 md:px-10">
       <PageHeader title={title} count={total}>
         <SearchField
           value={search}

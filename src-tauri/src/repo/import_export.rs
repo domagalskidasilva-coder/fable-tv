@@ -241,6 +241,7 @@ mod tests {
     #[test]
     fn export_then_import_into_fresh_db() {
         let db = temp_db();
+        db.write(|c| user_data::create_profile(c, "Principal", None, None)).unwrap();
         let sid = db
             .write(|c| {
                 sources::add(
@@ -296,6 +297,7 @@ mod tests {
         // Import into a fresh database: source added, favorite pending
         // (catalog not synced yet there).
         let db2 = temp_db();
+        db2.write(|c| user_data::create_profile(c, "Principal", None, None)).unwrap();
         let bundle2 = bundle.clone();
         let report = db2.write(move |c| apply_bundle(c, 1, &bundle2)).unwrap();
         assert_eq!(report.sources_added, 1);

@@ -343,6 +343,9 @@ mod tests {
     use std::collections::HashMap;
 
     fn seed(db: &std::sync::Arc<crate::db::Db>) -> (i64, i64) {
+        // Fresh installs no longer seed a profile, so create the one these
+        // tests operate on (the first profile gets id 1).
+        db.write(|c| create_profile(c, "Principal", None, None)).unwrap();
         let sid = db
             .write(|c| {
                 sources::add(
@@ -544,6 +547,8 @@ mod tests {
     #[test]
     fn profiles_create_switch_delete() {
         let db = temp_db();
+        // Fresh installs start with no profiles; create the base one first.
+        db.write(|c| create_profile(c, "Principal", None, None)).unwrap();
         let pid = db
             .write(|c| create_profile(c, "Crianças", Some("#3aa0ff"), Some("preset:nebula")))
             .unwrap();

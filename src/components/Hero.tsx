@@ -65,7 +65,7 @@ export function Hero({
   const plot = detail?.plot ?? null;
 
   return (
-    <div ref={ref} className="relative h-[80vh] min-h-[560px] w-full overflow-hidden">
+    <div ref={ref} className="relative h-[58vh] min-h-[430px] w-full overflow-hidden sm:h-[80vh] sm:min-h-[560px]">
       {/* Cinematic ambient fill */}
       <div data-hero-bg className="absolute inset-0">
         {hasArt ? (
@@ -81,7 +81,14 @@ export function Hero({
         )}
       </div>
 
-      {/* Crisp poster anchored right, blended into the canvas */}
+      {/* Mobile: crisp full-bleed key art (phones show real artwork, not just a blur) */}
+      {hasArt && (
+        <div className="absolute inset-0 sm:hidden">
+          <img src={url} alt={card.name} className="h-full w-full object-cover object-top" draggable={false} />
+        </div>
+      )}
+
+      {/* Desktop: crisp poster anchored right, blended into the canvas */}
       {hasArt && (
         <div data-hero-poster className="absolute right-0 top-0 hidden h-full w-[60%] sm:block">
           <img src={url} alt={card.name} className="h-full w-full object-cover" draggable={false} />
@@ -91,24 +98,24 @@ export function Hero({
         </div>
       )}
 
-      {/* Legibility scrims for text overlay */}
-      <div className="absolute inset-0 bg-gradient-to-r from-bg via-bg/80 to-transparent w-full md:w-[70%]" />
-      <div className="absolute inset-0 bg-gradient-to-t from-bg via-bg/10 to-transparent" />
+      {/* Legibility scrims — left-to-right on desktop, bottom-up on mobile */}
+      <div className="absolute inset-0 hidden w-full bg-gradient-to-r from-bg via-bg/80 to-transparent sm:block md:w-[70%]" />
+      <div className="absolute inset-0 bg-gradient-to-t from-bg via-bg/35 to-transparent sm:via-bg/10" />
 
-      <div className="absolute inset-0 flex flex-col justify-end pt-[120px] pb-[8%] px-6 md:px-12 z-10">
-        <div className="w-full max-w-3xl shrink-0">
+      <div className="absolute inset-0 z-10 flex flex-col justify-end px-5 pb-[7%] pt-20 sm:px-12 sm:pb-[8%] sm:pt-[120px]">
+        <div className="flex w-full max-w-3xl shrink-0 flex-col items-center text-center sm:items-start sm:text-left">
           <span data-hero-item className="eyebrow mb-3 block text-accent-strong drop-shadow-md">
             {t(TYPE_LABEL[card.itemType] ?? "search.movies")}
           </span>
           <h1
             data-hero-item
-            className="font-display mb-4 text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-black leading-tight tracking-tight text-white text-shadow line-clamp-3"
+            className="font-display mb-4 text-3xl font-black leading-tight tracking-tight text-white text-shadow line-clamp-3 sm:text-5xl md:text-6xl lg:text-7xl"
           >
             {card.name}
           </h1>
 
           {(year || genre || rating) && (
-            <p data-hero-item className="mb-5 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm font-semibold text-ink-dim">
+            <p data-hero-item className="mb-5 flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-sm font-semibold text-ink-dim sm:justify-start">
               {year && <span className="tabular tracking-wider">{year}</span>}
               {rating && <span className="text-gold font-bold flex items-center gap-1">★ {rating}</span>}
               {genre && <span className="rounded-lg bg-white/10 px-2.5 py-1 text-xs backdrop-blur-md shadow-inner border border-white/5">{genre}</span>}
@@ -116,32 +123,31 @@ export function Hero({
           )}
 
           {plot && (
-            <p data-hero-item className="mb-8 line-clamp-3 max-w-xl text-base leading-relaxed text-ink-dim text-shadow-sm font-medium">
+            <p data-hero-item className="mb-8 hidden max-w-xl text-base font-medium leading-relaxed text-ink-dim text-shadow-sm sm:line-clamp-3 sm:block">
               {plot}
             </p>
           )}
 
-          <div data-hero-item className="flex flex-wrap gap-4">
+          <div data-hero-item className="flex w-full items-stretch gap-3 sm:w-auto sm:gap-4">
             <motion.button
-              whileHover={{ scale: 1.04 }}
               whileTap={{ scale: 0.96 }}
               data-nav
               onClick={() => onPlay(card)}
-              className="flex items-center gap-2 rounded-xl bg-white px-8 py-3.5 text-base font-bold text-black shadow-xl shadow-white/10 transition-colors hover:bg-white/90"
+              className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-white px-6 py-3.5 text-base font-bold text-black shadow-xl shadow-white/10 transition-colors hover:bg-white/90 sm:flex-none sm:px-8"
               autoFocus
             >
               <PlayIcon />
               {t("common.play")}
             </motion.button>
             <motion.button
-              whileHover={{ scale: 1.04, backgroundColor: "rgba(255,255,255,0.25)" }}
               whileTap={{ scale: 0.96 }}
               data-nav
               onClick={() => onInfo(card)}
-              className="flex items-center gap-2 rounded-xl bg-surface-2 px-7 py-3.5 text-base font-bold text-white backdrop-blur-xl border border-border-soft shadow-lg transition-colors hover:border-accent/50"
+              aria-label={t("common.moreInfo")}
+              className="flex shrink-0 items-center justify-center gap-2 rounded-xl border border-border-soft bg-surface-2 px-5 py-3.5 text-base font-bold text-white shadow-lg backdrop-blur-xl transition-colors hover:border-accent/50 sm:px-7"
             >
               <InfoIcon />
-              {t("common.moreInfo")}
+              <span className="hidden sm:inline">{t("common.moreInfo")}</span>
             </motion.button>
           </div>
         </div>

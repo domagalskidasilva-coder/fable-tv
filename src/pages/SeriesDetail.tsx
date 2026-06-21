@@ -104,18 +104,18 @@ export default function SeriesDetail() {
         </div>
       )}
 
-      <div className="mx-auto max-w-5xl p-8 pt-10">
+      <div className="mx-auto max-w-5xl p-5 pt-8 sm:p-8 sm:pt-10">
         <button
           data-nav
           data-reveal
           onClick={() => navigate(-1)}
-          className="mb-4 text-sm font-semibold text-ink-dim transition-colors hover:text-ink"
+          className="mb-4 -ml-1 inline-flex items-center gap-1 py-1.5 text-sm font-semibold text-ink-dim transition-colors hover:text-ink"
         >
           ← {t("common.back")}
         </button>
 
         <div className="mb-8 flex flex-col gap-6 md:flex-row">
-          <div data-reveal className="w-44 shrink-0 self-center md:self-start">
+          <div data-reveal className="w-36 shrink-0 self-center sm:w-44 md:self-start">
             <div className="aspect-[2/3] overflow-hidden rounded-2xl border border-line/60 bg-surface shadow-2xl">
               {cover ? (
                 <img src={cover} alt={series.name} className="h-full w-full object-cover" />
@@ -198,7 +198,7 @@ export default function SeriesDetail() {
               data-nav
               onClick={() => setSeason(s.season)}
               className={cx(
-                "shrink-0 rounded-full px-4 py-1.5 text-sm font-semibold transition-colors",
+                "shrink-0 rounded-full px-4 py-2 text-sm font-semibold transition-colors",
                 s.season === current?.season
                   ? "bg-brand text-white"
                   : "bg-surface text-ink-dim hover:bg-surface-hover",
@@ -228,7 +228,7 @@ export default function SeriesDetail() {
                 <span className="hidden w-6 shrink-0 items-center justify-center self-center text-lg font-bold text-ink-faint sm:flex">
                   {ep.episodeNum}
                 </span>
-                <div className="relative aspect-video w-40 shrink-0 overflow-hidden rounded-md bg-surface-2">
+                <div className="relative aspect-video w-32 shrink-0 overflow-hidden rounded-md bg-surface-2 sm:w-40">
                   {thumb ? (
                     <img src={thumb} alt="" loading="lazy" className="h-full w-full object-cover" />
                   ) : (

@@ -125,7 +125,7 @@ export default function LiveTV() {
         </div>
       </aside>
 
-      <div className="flex h-full flex-1 flex-col px-6 pt-6">
+      <div className="flex h-full min-w-0 flex-1 flex-col px-4 pt-6 sm:px-6">
         <PageHeader title={t("live.title")} count={total} icon={<LiveIcon />}>
           <SearchField
             value={search}

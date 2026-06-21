@@ -7,6 +7,7 @@ import { EASE, gsap, useGsap } from "../lib/gsap";
 import { useI18n } from "../lib/i18n";
 import type { Profile } from "../lib/types";
 import { Spinner } from "../components/ui";
+import { ProfileModal } from "../components/ProfileModal";
 
 function ProfileTile({ profile, onPick }: { profile: Profile; onPick: () => void }) {
   return (
@@ -34,10 +35,18 @@ export default function WhoIsWatching({ onEnter }: { onEnter: () => void }) {
   const { t } = useI18n();
   const navigate = useNavigate();
   const [profiles, setProfiles] = useState<Profile[] | null>(null);
+  const [creating, setCreating] = useState(false);
 
   useEffect(() => {
     listProfiles().then(setProfiles).catch(() => setProfiles([]));
   }, []);
+
+  // First run: creating the first profile drops the user straight into the app.
+  const onCreated = async (id?: number) => {
+    if (id) await setActiveProfile(id).catch(() => undefined);
+    onEnter();
+    navigate("/");
+  };
 
   const ref = useGsap<HTMLDivElement>(
     (self) => {
@@ -64,10 +73,35 @@ export default function WhoIsWatching({ onEnter }: { onEnter: () => void }) {
     navigate("/profiles");
   };
 
+  const isOnboarding = profiles !== null && profiles.length === 0;
+
   return (
     <div className="relative flex h-screen flex-col items-center justify-center overflow-hidden px-6">
       {profiles === null ? (
         <Spinner />
+      ) : isOnboarding ? (
+        <div ref={ref} className="flex max-w-md flex-col items-center text-center">
+          <div data-reveal className="mb-6">
+            <BrandMark size="lg" className="mx-auto" />
+          </div>
+          <h1
+            data-reveal
+            className="font-display mb-3 text-3xl font-black tracking-cine text-ink md:text-4xl"
+          >
+            {t("who.welcomeTitle")}
+          </h1>
+          <p data-reveal className="mb-8 leading-relaxed text-ink-dim">
+            {t("who.welcomeSub")}
+          </p>
+          <button
+            data-nav
+            data-reveal
+            onClick={() => setCreating(true)}
+            className="rounded-xl bg-brand px-8 py-3.5 text-base font-bold text-white shadow-lg transition-transform hover:scale-[1.03] active:scale-95"
+          >
+            {t("who.createFirst")}
+          </button>
+        </div>
       ) : (
         <div ref={ref} className="flex flex-col items-center">
           <div data-reveal className="mb-5">
@@ -112,6 +146,13 @@ export default function WhoIsWatching({ onEnter }: { onEnter: () => void }) {
           </button>
         </div>
       )}
+
+      <ProfileModal
+        open={creating}
+        editing={null}
+        onClose={() => setCreating(false)}
+        onSaved={onCreated}
+      />
     </div>
   );
 }

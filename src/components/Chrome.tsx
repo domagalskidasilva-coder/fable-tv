@@ -104,7 +104,7 @@ export function Chip({
       data-nav
       onClick={onClick}
       className={cx(
-        "shrink-0 rounded-full px-4 py-1.5 text-sm font-semibold transition-all duration-200",
+        "shrink-0 rounded-full px-4 py-2 text-sm font-semibold transition-all duration-200",
         active
           ? "bg-brand text-white shadow-md"
           : "bg-surface/80 text-ink-dim hover:bg-surface-hover hover:text-ink",

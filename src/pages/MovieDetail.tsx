@@ -79,8 +79,8 @@ export default function MovieDetail() {
         </div>
       )}
 
-      <div className="mx-auto flex max-w-5xl flex-col gap-8 p-8 pt-10 md:flex-row md:items-start">
-        <div data-reveal className="w-52 shrink-0 self-center md:self-start">
+      <div className="mx-auto flex max-w-5xl flex-col gap-6 p-5 pt-8 sm:gap-8 sm:p-8 sm:pt-10 md:flex-row md:items-start">
+        <div data-reveal className="w-40 shrink-0 self-center sm:w-52 md:self-start">
           <div className="aspect-[2/3] overflow-hidden rounded-2xl border border-line/60 bg-surface shadow-2xl">
             {cover ? (
               <img src={cover} alt={movie.name} className="h-full w-full object-cover" />
@@ -97,7 +97,7 @@ export default function MovieDetail() {
             data-nav
             data-reveal
             onClick={() => navigate(-1)}
-            className="mb-4 text-sm font-semibold text-ink-dim transition-colors hover:text-ink"
+            className="mb-4 -ml-1 inline-flex items-center gap-1 py-1.5 text-sm font-semibold text-ink-dim transition-colors hover:text-ink"
           >
             ← {t("common.back")}
           </button>

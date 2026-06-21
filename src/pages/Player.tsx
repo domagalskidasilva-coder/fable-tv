@@ -413,7 +413,7 @@ export default function Player() {
             <div className="p-5">
               {!isLive && duration > 0 && (
                 <div className="mb-3 flex items-center gap-3 text-xs font-medium text-white/80">
-                  <span className="w-14 text-right">{formatClock(time)}</span>
+                  <span className="w-12 text-right tabular sm:w-14">{formatClock(time)}</span>
                   <input
                     type="range"
                     min={0}
@@ -425,12 +425,12 @@ export default function Player() {
                       if (video) video.currentTime = Number(e.target.value);
                       poke();
                     }}
-                    className="h-1.5 flex-1 cursor-pointer"
+                    className="h-2 flex-1 cursor-pointer"
                   />
-                  <span className="w-14">{formatClock(duration)}</span>
+                  <span className="w-12 tabular sm:w-14">{formatClock(duration)}</span>
                 </div>
               )}
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-3 sm:gap-4">
                 <button
                   data-nav
                   onClick={togglePlay}
@@ -499,7 +499,7 @@ export default function Player() {
                     step={0.05}
                     value={muted ? 0 : volume}
                     onChange={(e) => changeVolume(Number(e.target.value))}
-                    className="h-1.5 w-24 cursor-pointer"
+                    className="hidden h-1.5 w-24 cursor-pointer sm:block"
                   />
                 </div>
 
